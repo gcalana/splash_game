@@ -24,6 +24,6 @@ Keep your townsfolk home and your fund healthy. At the end you get a star
 rating for how well Cardinal Grove weathered the years.
 
 ```
-https://YOUR-USERNAME.github.io/splash-game/
+https://gcalana.github.io/splash_game/
 ```
 
