@@ -883,13 +883,7 @@ class SplashUI {
     const g = this.game;
     await wait(400);
 
-    const { byProperty, totalRevenue } = g.collectRevenue();
-    this.spawnCoins(byProperty);
-    this.updateHUD("budget");
-    this.flashStat(this.dom.statPop);
-    this.log(`🪙 The town earns <b>${money(totalRevenue)}</b>. Fund is now ${money(g.budget)}.`, "j-money");
-
-    await wait(700);
+ 
 
     if (g.damagedProperties.length > 0) {
       this.setPhase("repair");
@@ -942,8 +936,17 @@ class SplashUI {
   }
 
   /* ---- end of year ---- */
-  endYear() {
+  async endYear() {
     const g = this.game;
+
+    this.dom.primary.disabled = true;
+    const { byProperty, totalRevenue } = g.collectRevenue();
+    this.spawnCoins(byProperty);
+    this.updateHUD("budget");
+    this.flashStat(this.dom.statPop);
+    this.log(`🪙 The town earns <b>${money(totalRevenue)}</b>. Fund is now ${money(g.budget)}.`, "j-money");
+    await wait(1100);
+
     g.recordYear({
       year: g.year,
       hazard: this.stats.hazards[this.stats.hazards.length - 1],
