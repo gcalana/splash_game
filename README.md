@@ -23,6 +23,8 @@ Each **year** moves through four steps:
 Keep your townsfolk home and your fund healthy. At the end you get a star
 rating for how well Cardinal Grove weathered the years.
 
+## Play online using this link
+
 ```
 https://gcalana.github.io/splash_game/
 ```
