@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Splash · Cardinal Grove</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..700;1,9..144,500&family=Nunito:wght@400;600;700;800&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- Top heads-up display -->
+    <header class="hud" id="hud">
+      <div class="hud__brand">
+        <span class="hud__logo" aria-hidden="true">🌊</span>
+        <div>
+          <h1 class="hud__title">Splash</h1>
+          <p class="hud__sub">Cardinal Grove</p>
+        </div>
+      </div>
+      <div class="hud__stats">
+        <div class="stat" id="stat-year">
+          <span class="stat__label">Year</span>
+          <span class="stat__value" id="year-value">1 / 10</span>
+        </div>
+        <div class="stat stat--money" id="stat-budget">
+          <span class="stat__label">Town Fund</span>
+          <span class="stat__value" id="budget-value">$1.6M</span>
+        </div>
+        <div class="stat stat--people" id="stat-pop">
+          <span class="stat__label">Townsfolk</span>
+          <span class="stat__value" id="pop-value">41</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="stage">
+      <!-- The diorama -->
+      <section class="scene-wrap">
+        <div class="scene" id="scene">
+          <div class="scene__bg" id="scene-bg"></div>
+          <div class="scene__scenery" id="scenery"></div>
+          <div class="scene__zones" id="zones"></div>
+          <div class="scene__clouds" id="clouds"></div>
+          <div class="scene__buildings" id="buildings"></div>
+          <div class="scene__fx" id="fx"></div>
+
+          <div class="phase-ribbon" id="phase-ribbon">
+            <span class="phase-ribbon__dot"></span>
+            <span id="phase-ribbon-text">Plan the year</span>
+          </div>
+
+          <button class="legend-btn" id="legend-btn" aria-label="Show legend" title="What does this mean?">?</button>
+          <div class="legend-card" id="legend-card" hidden>
+            <h3 class="legend-card__title">Reading Cardinal Grove</h3>
+            <div class="legend-row"><span class="ic">🔥</span><span><b>Wildfire risk</b> — homes along the forest ridge.</span></div>
+            <div class="legend-row"><span class="ic">🌊</span><span><b>Flood risk</b> — buildings down on the riverbank.</span></div>
+            <div class="legend-row"><span class="ic">🪨</span><span><b>Earthquakes</b> — can rattle anywhere in town.</span></div>
+            <hr class="legend-rule" />
+            <div class="legend-row"><span class="ic">🛡</span><span><b>Shielded</b> — badges show what a building is protected from.</span></div>
+            <div class="legend-row"><span class="ic">🧍</span><span><b>Residents</b> — townsfolk living there; they pay into the fund.</span></div>
+            <div class="legend-row"><span class="ic">🪙</span><span><b>Revenue</b> — gathered from standing buildings each year.</span></div>
+            <div class="legend-row"><span class="ic">🩹</span><span><b>Damaged</b> buildings earn nothing until you rebuild them.</span></div>
+            <hr class="legend-rule" />
+            <div class="legend-row"><span class="ic">🎲</span><span><b>You call it</b> — each year you enter which hazard struck and which buildings it damaged. Nothing is rolled for you.</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Side ledger / control panel -->
+      <aside class="ledger" id="ledger">
+        <div class="ledger__head">
+          <h2 class="ledger__phase" id="ledger-phase">Plan the Year</h2>
+          <p class="ledger__hint" id="ledger-hint">
+            Tap a building to shield it from harm before the season turns.
+          </p>
+        </div>
+
+        <div class="ledger__floods" id="flood-panel"></div>
+
+        <div class="ledger__journal-wrap">
+          <h3 class="ledger__journal-title">Town Journal</h3>
+          <div class="journal" id="journal"></div>
+        </div>
+
+        <button class="primary-btn" id="primary-btn">Brace for the year</button>
+      </aside>
+    </main>
+
+    <!-- Building popover -->
+    <div class="popover" id="popover" hidden></div>
+
+    <!-- Hazard announcement -->
+    <div class="hazard-banner" id="hazard-banner" hidden>
+      <span class="hazard-banner__icon" id="hazard-icon">🌊</span>
+      <div>
+        <h2 class="hazard-banner__title" id="hazard-title">Big Flood</h2>
+        <p class="hazard-banner__sub" id="hazard-sub">The river surges through town.</p>
+      </div>
+    </div>
+
+    <!-- Title screen -->
+    <div class="overlay overlay--title" id="title">
+      <div class="title-card">
+        <div class="title-card__emblem">🏘️</div>
+        <h1 class="title-card__name">Splash</h1>
+        <p class="title-card__tagline">A cozy game of weathering the years in Cardinal Grove.</p>
+        <p class="title-card__body">
+          You look after a little town nestled between a <b>forest ridge</b>,
+          a <b>winding river</b>, and <b>restless ground</b>. Each year, decide
+          what to protect, then <b>record the season yourself</b> — which hazard
+          struck and which buildings it damaged — gather what the town earns, and
+          rebuild what's broken. Roll dice at the table, draw cards, or just
+          decide; Splash keeps the books.
+        </p>
+        <div class="title-card__choice" id="length-choice"></div>
+        <button class="primary-btn primary-btn--lg" id="start-btn">Settle in ▸</button>
+        <p class="title-card__credit">A picture-book city sim · manual-entry edition</p>
+      </div>
+    </div>
+
+    <!-- End-of-game report -->
+    <div class="overlay overlay--report" id="report" hidden>
+      <div class="report-card" id="report-card"></div>
+    </div>
+  </div>
+
+  <script type="module" src="js/ui.js"></script>
+</body>
+</html>
