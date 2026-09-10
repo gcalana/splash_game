@@ -74,21 +74,7 @@ with the link can then play in their browser — no install, no Python.
 `index.html` has to sit at the **root of what you publish** — so push the
 *contents* of `claude_version`, not the folder itself.
 
-### One-time setup (command line)
 
-```bash
-cd /Users/gabrielacalana/Workspace/splash_game/claude_version
-
-git init
-git add .
-git commit -m "Splash — Cardinal Grove (manual-entry edition)"
-git branch -M main
-
-# create an empty PUBLIC repo on github.com first (no README, no .gitignore),
-# then point this folder at it:
-git remote add origin https://github.com/YOUR-USERNAME/splash-game.git
-git push -u origin main
-```
 
 Then on GitHub: **Settings ▸ Pages ▸ Build and deployment**. Set **Source** to
 *Deploy from a branch*, **Branch** to `main`, folder to `/ (root)`, and press
