@@ -278,6 +278,26 @@ export class SplashGame {
     this.history.push(record);
   }
 
+  /* Year-end population for each completed year, in order. */
+  get populationByYear() {
+    return this.history.map((r) => r.population ?? 0);
+  }
+
+  /*
+   * Population over time: the sum of the town's population at the end of
+   * every completed year. A town of 41 that holds steady for 3 years scores
+   * 123; one that loses half its people early scores far less. It rewards
+   * keeping folks home *throughout*, not just on the final year.
+   */
+  get populationOverTime() {
+    return this.populationByYear.reduce((sum, n) => sum + n, 0);
+  }
+
+  /* The best possible total, for context: full population every year. */
+  get maxPopulationOverTime() {
+    return this.basePopulationTotal * this.history.length;
+  }
+
   /* A cozy resilience score for the end-of-game report. */
   finalScore() {
     const popShare = this.totalPopulation / this.basePopulationTotal;

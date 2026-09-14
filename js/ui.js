@@ -792,14 +792,16 @@ class SplashUI {
   renderUndo() {
     const btn = this.dom.undo;
     if (!btn) return;
+    // Only the two decision phases have anything to take back.
     const undoable = this.phase === "plan" || this.phase === "repair";
     const last = this.undoStack[this.undoStack.length - 1];
-    if (!last || !undoable) {
-      btn.hidden = true;
-      return;
-    }
-    btn.hidden = false;
-    btn.textContent = `↩ Undo ${last.label}`;
+
+    // Stay visible (greyed out) through the decision phases so the control is
+    // discoverable before the first purchase; hide it only when the phase
+    // itself has no decisions to reverse.
+    btn.hidden = !undoable;
+    btn.disabled = !last;
+    btn.textContent = last ? `↩ Undo ${last.label}` : "↩ Nothing to undo yet";
   }
 
   undoLast() {
@@ -1050,6 +1052,14 @@ class SplashUI {
     };
 
     const safe = this.stats.yearsAllSafe;
+
+    // Population over time: the year-end population totalled across the game.
+    const popOverTime = g.populationOverTime;
+    const maxPopOverTime = g.maxPopulationOverTime;
+    const yearChips = g.populationByYear
+      .map((n, i) => `<span class="report-years__chip"><b>${n}</b><small>yr ${i + 1}</small></span>`)
+      .join("");
+
     this.dom.reportCard.innerHTML = `
       <div class="title-card__emblem">🏡</div>
       <h2>The Years Pass…</h2>
@@ -1060,6 +1070,14 @@ class SplashUI {
         <div class="report-stat"><span class="n">${g.totalPopulation} / ${g.basePopulationTotal}</span><span class="l">Townsfolk Home</span></div>
         <div class="report-stat"><span class="n">${functional} / ${g.properties.length}</span><span class="l">Buildings Standing</span></div>
         <div class="report-stat"><span class="n">${safe}</span><span class="l">Calm Years</span></div>
+      </div>
+      <div class="report-total">
+        <span class="report-total__n">${popOverTime.toLocaleString()}</span>
+        <span class="report-total__l">Population Over Time</span>
+        <span class="report-total__note">
+          sum of year-end population · ${popOverTime.toLocaleString()} of a possible ${maxPopOverTime.toLocaleString()}
+        </span>
+        <div class="report-years">${yearChips}</div>
       </div>
       <button class="primary-btn primary-btn--lg" id="replay-btn">Settle in again ▸</button>
     `;

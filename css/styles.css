@@ -704,6 +704,14 @@ body::after {
   background: #fff;
 }
 .undo-btn:active { transform: translateY(1px); }
+.undo-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+  color: var(--ink-soft);
+  background: transparent;
+  border-color: var(--card-line);
+}
+.undo-btn:disabled:hover { color: var(--ink-soft); border-color: var(--card-line); background: transparent; }
 
 /* ---------------- Popover ---------------- */
 .popover {
@@ -841,6 +849,60 @@ body::after {
 .report-stat { background: var(--paper); border: 2px solid var(--card-line); border-radius: 14px; padding: 12px 14px; }
 .report-stat .n { font-family: var(--font-display); font-size: 26px; font-weight: 600; display: block; }
 .report-stat .l { font-size: 11px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: var(--ink-faint); }
+
+/* Population over time — the headline total, given its own card. */
+.report-total {
+  background: linear-gradient(180deg, #fff8e8, #f6ead1);
+  border: 2px solid var(--ink);
+  border-radius: 16px;
+  padding: 14px 16px 12px;
+  margin: 0 0 22px;
+  text-align: center;
+  box-shadow: 0 3px 0 rgba(74, 53, 39, 0.14);
+}
+.report-total__n {
+  font-family: var(--font-display);
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 1;
+  display: block;
+  color: var(--ink);
+}
+.report-total__l {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  display: block;
+  margin-top: 4px;
+}
+.report-total__note {
+  font-size: 11.5px;
+  color: var(--ink-soft);
+  display: block;
+  margin-top: 6px;
+}
+.report-years {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+.report-years__chip {
+  background: var(--paper);
+  border: 2px solid var(--card-line);
+  border-radius: 10px;
+  padding: 4px 8px;
+  min-width: 42px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.15;
+}
+.report-years__chip b { font-family: var(--font-display); font-size: 15px; font-weight: 600; }
+.report-years__chip small { font-size: 9px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: var(--ink-faint); }
 .report-card__stars { font-size: 30px; letter-spacing: 4px; margin: 0 0 8px; }
 
 @keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
