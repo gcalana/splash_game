@@ -177,7 +177,7 @@ class SplashUI {
     this.game = null;
     this.phase = "plan";
     this.selected = null;
-    this.totalYears = 10;
+    this.totalYears = 5;
     this.currentHazard = null;   // hazard the player entered this year
     this.marked = new Set();     // buildings the player marked as damaged
     this.undoStack = [];         // reversible decisions made in this phase
@@ -331,12 +331,12 @@ class SplashUI {
   /* ---- title screen ---- */
   setupTitle() {
     const opts = [
-      { y: 6, label: "Short Stay", note: "6 years" },
-      { y: 10, label: "Cozy Settle", note: "10 years" },
-      { y: 16, label: "Long Roots", note: "16 years" },
+      { y: 3, label: "Short Stay", note: "3 years" },
+      { y: 5, label: "Cozy Settle", note: "5 years" },
+      { y: 10, label: "Long Roots", note: "10 years" },
     ];
     for (const o of opts) {
-      const b = el("button", "len-opt" + (o.y === 10 ? " is-on" : ""),
+      const b = el("button", "len-opt" + (o.y === 5 ? " is-on" : ""),
         `${o.label}<small>${o.note}</small>`);
       b.addEventListener("click", () => {
         this.totalYears = o.y;
