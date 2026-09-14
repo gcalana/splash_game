@@ -177,9 +177,10 @@ class SplashUI {
     this.game = null;
     this.phase = "plan";
     this.selected = null;
-    this.totalYears = 5;
+    this.totalYears = 10;
     this.currentHazard = null;   // hazard the player entered this year
     this.marked = new Set();     // buildings the player marked as damaged
+    this.undoStack = [];         // reversible decisions made in this phase
     this.stats = { hazards: [], buildingsLost: 0, yearsAllSafe: 0 };
 
     this.cacheDom();
@@ -210,6 +211,7 @@ class SplashUI {
       panel: $("#flood-panel"),
       journal: $("#journal"),
       primary: $("#primary-btn"),
+      undo: $("#undo-btn"),
       ribbonText: $("#phase-ribbon-text"),
       popover: $("#popover"),
       banner: $("#hazard-banner"),
@@ -314,6 +316,7 @@ class SplashUI {
 
   bindGlobal() {
     this.dom.primary.addEventListener("click", () => this.onPrimary());
+    this.dom.undo.addEventListener("click", () => this.undoLast());
     document.addEventListener("click", (e) => {
       if (
         this.dom.popover.hidden ||
@@ -328,12 +331,12 @@ class SplashUI {
   /* ---- title screen ---- */
   setupTitle() {
     const opts = [
-      { y: 3, label: "Short Stay", note: "3 years" },
-      { y: 5, label: "Cozy Settle", note: "5 years" },
-      { y: 10, label: "Long Roots", note: "10 years" },
+      { y: 6, label: "Short Stay", note: "6 years" },
+      { y: 10, label: "Cozy Settle", note: "10 years" },
+      { y: 16, label: "Long Roots", note: "16 years" },
     ];
     for (const o of opts) {
-      const b = el("button", "len-opt" + (o.y === 5 ? " is-on" : ""),
+      const b = el("button", "len-opt" + (o.y === 10 ? " is-on" : ""),
         `${o.label}<small>${o.note}</small>`);
       b.addEventListener("click", () => {
         this.totalYears = o.y;
@@ -350,6 +353,7 @@ class SplashUI {
     this.stats = { hazards: [], buildingsLost: 0, yearsAllSafe: 0 };
     this.currentHazard = null;
     this.marked = new Set();
+    this.undoStack = [];
     this.dom.title.hidden = true;
     this.dom.report.hidden = true;
     this.dom.journal.innerHTML = "";
@@ -505,7 +509,13 @@ class SplashUI {
       btn.addEventListener("click", () => {
         const tier = btn.dataset.flood;
         const cost = this.game.floodMitigationCost(tier);
+        const undoPoint = this.game.snapshot();
         if (this.game.buyFloodMitigation(tier)) {
+          this.undoStack.push({
+            label: tier === "big" ? "the river levees" : "the riverside sandbags",
+            snap: undoPoint,
+          });
+          this.renderUndo();
           const label = tier === "big" ? "river levees" : "riverside sandbags";
           this.log(`🌊 Built ${label} for the town (${money(cost)}). The riverside is safer.`, "j-money");
           this.updateHUD("budget");
@@ -687,8 +697,11 @@ class SplashUI {
         btn.disabled = !can;
         if (!can) btn.title = "Not enough in the town fund.";
         btn.addEventListener("click", () => {
+          const undoPoint = g.snapshot();
           if (g.repair(prop)) {
+            this.undoStack.push({ label: `rebuilding ${D.PROPERTY_LABEL[prop]}`, snap: undoPoint });
             this.log(`🔨 Rebuilt <b>${D.PROPERTY_LABEL[prop]}</b> for ${money(cost)}. Families move back in.`, "j-good");
+            this.renderUndo();
             this.updateHUD("budget");
             this.renderBuildings();
             // reopen so post-repair mitigation can be bought
@@ -713,8 +726,14 @@ class SplashUI {
         `<span>${meta.icon} ${verb} <small>(${meta.label.toLowerCase()})</small></span><span class="cost">${money(opt.cost)}</span>`);
       btn.disabled = !can;
       btn.addEventListener("click", () => {
+        const undoPoint = g.snapshot();
         if (g.buyMitigation(opt.hazard, prop)) {
+          this.undoStack.push({
+            label: `the ${meta.label.toLowerCase()} retrofit on ${D.PROPERTY_LABEL[prop]}`,
+            snap: undoPoint,
+          });
           this.log(`${meta.icon} Protected <b>${D.PROPERTY_LABEL[prop]}</b> from ${meta.label.toLowerCase()} (${money(opt.cost)}).`, "j-money");
+          this.renderUndo();
           this.updateHUD("budget");
           this.renderBuildings();
           const node = this.findNode(prop);
@@ -753,6 +772,49 @@ class SplashUI {
     this.refreshActionable();
   }
 
+  /* ---- undo ----
+   *
+   * Every spending decision is stacked with a snapshot taken just before it,
+   * so undo is "put the town back the way it was". The stack is wiped at each
+   * phase change: once you have seen the hazard you cannot un-buy a retrofit,
+   * and once the year is closed the books are closed.
+   */
+  pushUndo(label) {
+    this.undoStack.push({ label, snap: this.game.snapshot() });
+    this.renderUndo();
+  }
+
+  clearUndo() {
+    this.undoStack = [];
+    this.renderUndo();
+  }
+
+  renderUndo() {
+    const btn = this.dom.undo;
+    if (!btn) return;
+    const undoable = this.phase === "plan" || this.phase === "repair";
+    const last = this.undoStack[this.undoStack.length - 1];
+    if (!last || !undoable) {
+      btn.hidden = true;
+      return;
+    }
+    btn.hidden = false;
+    btn.textContent = `↩ Undo ${last.label}`;
+  }
+
+  undoLast() {
+    const entry = this.undoStack.pop();
+    if (!entry) return;
+    this.game.restore(entry.snap);
+    this.log(`↩ Undid ${entry.label}. The fund is back to ${money(this.game.budget)}.`, "j-undo");
+    this.closePopover();
+    this.renderBuildings();
+    this.renderPanel();
+    this.refreshActionable();
+    this.updateHUD();
+    this.renderUndo();
+  }
+
   /* ---- phase machine ---- */
   setPhase(phase) {
     this.phase = phase;
@@ -778,7 +840,7 @@ class SplashUI {
       },
       repair: {
         title: "Rebuild",
-        hint: "Tap the smoking, soaked, or cracked buildings to rebuild them and bring families home.",
+        hint: "Tap the smoking, soaked, or cracked buildings to rebuild them and bring families home. This year's revenue lands once you finish the year.",
         ribbon: "Rebuild the town",
         btn: "Finish the year ▸",
       },
@@ -789,6 +851,7 @@ class SplashUI {
     this.dom.primary.textContent = copy.btn;
     // In the hazard phase the only way forward is picking a hazard.
     this.dom.primary.disabled = phase === "hazard";
+    this.clearUndo();
     this.renderPanel();
     this.refreshActionable();
     if (phase === "damage") this.updateDamageButton();
@@ -878,12 +941,10 @@ class SplashUI {
     await this.afterDamage();
   }
 
-  /* ---- revenue, then on to rebuilding ---- */
+  /* ---- on to rebuilding (revenue comes after, as in the Python) ---- */
   async afterDamage() {
     const g = this.game;
     await wait(400);
-
- 
 
     if (g.damagedProperties.length > 0) {
       this.setPhase("repair");
@@ -892,6 +953,7 @@ class SplashUI {
       this.dom.primary.textContent = "Begin the next year ▸";
       this.dom.primary.disabled = false;
       this.phase = "repair"; // primary → endYear; no damaged buildings to repair
+      this.clearUndo();
       this.dom.ledgerPhase.textContent = "All Is Well";
       this.dom.ledgerHint.textContent = "Nothing to rebuild this year. Enjoy the calm and carry on.";
       this.renderPanel();
@@ -935,10 +997,13 @@ class SplashUI {
     }
   }
 
-  /* ---- end of year ---- */
+  /* ---- end of year: revenue, then close the books ---- */
   async endYear() {
     const g = this.game;
 
+    // Revenue is collected after the repair phase, exactly as in
+    // splash_game_oop_manual_input_v4.py, so repairs are paid for out of
+    // the budget the town started the year with.
     this.dom.primary.disabled = true;
     const { byProperty, totalRevenue } = g.collectRevenue();
     this.spawnCoins(byProperty);

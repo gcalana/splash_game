@@ -235,6 +235,39 @@ export class SplashGame {
     return true;
   }
 
+  /* ----- undo support -----
+   *
+   * Rather than hand-writing a refund for every kind of decision (which gets
+   * fiddly for the discounted levee upgrade), we snapshot the handful of
+   * fields a decision can touch and restore them wholesale. Money, retrofit
+   * flags, and building/population state all come back exactly as they were.
+   */
+  snapshot() {
+    return {
+      budget: this.budget,
+      decisions: { ...this.decisions },
+      mitigateSmallFlood: this.mitigateSmallFlood,
+      mitigateBigFlood: this.mitigateBigFlood,
+      buildingFunctional: { ...this.buildingFunctional },
+      population: { ...this.population },
+      damageCausedBy: { ...this.damageCausedBy },
+      damagedSinceYear: { ...this.damagedSinceYear },
+    };
+  }
+
+  restore(snap) {
+    if (!snap) return false;
+    this.budget = snap.budget;
+    this.decisions = { ...snap.decisions };
+    this.mitigateSmallFlood = snap.mitigateSmallFlood;
+    this.mitigateBigFlood = snap.mitigateBigFlood;
+    this.buildingFunctional = { ...snap.buildingFunctional };
+    this.population = { ...snap.population };
+    this.damageCausedBy = { ...snap.damageCausedBy };
+    this.damagedSinceYear = { ...snap.damagedSinceYear };
+    return true;
+  }
+
   /* ----- bookkeeping ----- */
   beginYear() {
     this.year += 1;

@@ -507,6 +507,7 @@ body::after {
 .j-entry.j-good { border-left-color: var(--sage); }
 .j-entry.j-bad { border-left-color: var(--terracotta); }
 .j-entry.j-money { border-left-color: var(--mustard); }
+.j-entry.j-undo { border-left-color: var(--ink-faint); font-style: italic; color: var(--ink-soft); }
 @keyframes slideIn { from { opacity: 0; transform: translateY(-6px); } }
 
 /* ---------------- Buttons ---------------- */
@@ -679,6 +680,30 @@ body::after {
   font-size: 12px; font-weight: 800;
   display: grid; place-items: center;
 }
+
+/* ---------------- Undo button ---------------- */
+.undo-btn {
+  font-family: var(--font-body);
+  font-weight: 800;
+  font-size: 12px;
+  letter-spacing: 0.2px;
+  color: var(--ink-soft);
+  background: var(--paper);
+  border: 2px dashed var(--card-line);
+  border-radius: 12px;
+  padding: 8px 10px;
+  margin-bottom: 7px;
+  cursor: pointer;
+  width: 100%;
+  text-align: center;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+.undo-btn:hover {
+  color: var(--ink);
+  border-color: var(--ink-faint);
+  background: #fff;
+}
+.undo-btn:active { transform: translateY(1px); }
 
 /* ---------------- Popover ---------------- */
 .popover {
