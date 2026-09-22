@@ -681,6 +681,32 @@ body::after {
   display: grid; place-items: center;
 }
 
+/* ---------------- Practice year ---------------- */
+.skip-trial-btn {
+  font-family: var(--font-body);
+  font-weight: 800;
+  font-size: 11.5px;
+  letter-spacing: 0.3px;
+  color: var(--ink-soft);
+  background: transparent;
+  border: none;
+  border-bottom: 2px dotted var(--card-line);
+  border-radius: 0;
+  padding: 3px 2px;
+  margin: 0 auto 8px;
+  cursor: pointer;
+  display: block;
+  transition: color 0.15s, border-color 0.15s;
+}
+.skip-trial-btn:hover { color: var(--terracotta-deep); border-bottom-color: var(--terracotta); }
+
+.title-card__practice {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  margin: 10px 0 0;
+}
+
 /* ---------------- Undo button ---------------- */
 .undo-btn {
   font-family: var(--font-body);

@@ -172,6 +172,35 @@ function sceneBackgroundSVG() {
 }
 
 /* ----------------------------------------------------------- app */
+/*
+ * Wording for the practice year. Same phases as a real year, but every screen
+ * says plainly that nothing counts, so a new player can poke at retrofits,
+ * hazards, damage and rebuilding once before the town is really at stake.
+ */
+const TRIAL_COPY = {
+  plan: {
+    title: "Practice: Plan the Year",
+    hint: "This is a practice run — nothing you spend or lose here counts. Tap a glowing building to shield it, or buy river defenses below, then face the season.",
+    ribbon: "Practice year · plan",
+  },
+  hazard: {
+    title: "Practice: The Season Turns",
+    hint: "Pick any hazard to see what it does to the town. In a real year this is where you record whatever the dice, the cards, or the room decided.",
+    ribbon: "Practice year · what happened?",
+  },
+  damage: {
+    title: "Practice: Record the Damage",
+    hint: "Mark whichever buildings you like — tap them in town or tick them here. Try marking one to see what a wrecked building looks like.",
+    ribbon: "Practice year · record damage",
+  },
+  repair: {
+    title: "Practice: Rebuild",
+    hint: "Tap a damaged building to rebuild it; undo works here too. When you have seen enough, finish the practice year and the real game begins.",
+    ribbon: "Practice year · rebuild",
+    btn: "Finish practice · begin Year 1 ▸",
+  },
+};
+
 class SplashUI {
   constructor() {
     this.game = null;
@@ -181,6 +210,7 @@ class SplashUI {
     this.currentHazard = null;   // hazard the player entered this year
     this.marked = new Set();     // buildings the player marked as damaged
     this.undoStack = [];         // reversible decisions made in this phase
+    this.isTrial = false;        // true during the throwaway practice year
     this.stats = { hazards: [], buildingsLost: 0, yearsAllSafe: 0 };
 
     this.cacheDom();
@@ -212,6 +242,7 @@ class SplashUI {
       journal: $("#journal"),
       primary: $("#primary-btn"),
       undo: $("#undo-btn"),
+      skipTrial: $("#skip-trial-btn"),
       ribbonText: $("#phase-ribbon-text"),
       popover: $("#popover"),
       banner: $("#hazard-banner"),
@@ -317,6 +348,7 @@ class SplashUI {
   bindGlobal() {
     this.dom.primary.addEventListener("click", () => this.onPrimary());
     this.dom.undo.addEventListener("click", () => this.undoLast());
+    this.dom.skipTrial.addEventListener("click", () => this.beginRealGame());
     document.addEventListener("click", (e) => {
       if (
         this.dom.popover.hidden ||
@@ -348,7 +380,36 @@ class SplashUI {
     this.dom.startBtn.addEventListener("click", () => this.startGame());
   }
 
+  /*
+   * Every game opens with a throwaway practice year: one full turn of
+   * retrofit ▸ hazard ▸ damage ▸ rebuild on a town that is thrown away
+   * afterwards. beginRealGame() then starts Year 1 from a clean slate.
+   */
   startGame() {
+    this.isTrial = true;
+    this.resetRun();
+    this.log(
+      "<b>Practice year.</b> One run through the whole cycle — retrofit, hazard, damage, rebuild. Nothing here counts.",
+      "j-year"
+    );
+    this.log("Spend freely and break things; the town resets when you finish.", "j-undo");
+    this.setPhase("plan");
+    this.updateHUD();
+  }
+
+  beginRealGame() {
+    this.isTrial = false;
+    this.resetRun();
+    this.log(
+      `<b>Year ${this.game.year}</b> begins. The town fund holds ${money(this.game.budget)}.`,
+      "j-year"
+    );
+    this.setPhase("plan");
+    this.updateHUD();
+  }
+
+  /* Fresh town, fresh books — shared by the practice year and the real game. */
+  resetRun() {
     this.game = new SplashGame({ totalYears: this.totalYears });
     this.stats = { hazards: [], buildingsLost: 0, yearsAllSafe: 0 };
     this.currentHazard = null;
@@ -359,15 +420,12 @@ class SplashUI {
     this.dom.journal.innerHTML = "";
     this.game.beginYear();
     this.renderBuildings();
-    this.log(`<b>Year ${this.game.year}</b> begins. The town fund holds ${money(this.game.budget)}.`, "j-year");
-    this.setPhase("plan");
-    this.updateHUD();
   }
 
   /* ---- HUD ---- */
   updateHUD(flash) {
     const g = this.game;
-    this.dom.yearV.textContent = `${g.year} / ${g.totalYears}`;
+    this.dom.yearV.textContent = this.isTrial ? "Practice" : `${g.year} / ${g.totalYears}`;
     this.dom.budgetV.textContent = money(g.budget);
     this.dom.popV.textContent = `${g.totalPopulation}`;
     if (flash === "budget") this.flashStat(this.dom.statBudget);
@@ -789,6 +847,14 @@ class SplashUI {
     this.renderUndo();
   }
 
+  /* The skip link only appears in the practice year, and only in the two
+     phases where no animation is mid-flight. */
+  renderTrialChrome() {
+    const btn = this.dom.skipTrial;
+    if (!btn) return;
+    btn.hidden = !(this.isTrial && (this.phase === "plan" || this.phase === "repair"));
+  }
+
   renderUndo() {
     const btn = this.dom.undo;
     if (!btn) return;
@@ -840,6 +906,12 @@ class SplashUI {
         ribbon: "Record the damage",
         btn: "Nothing was damaged ▸",
       },
+      final: {
+        title: "The Final Reckoning",
+        hint: "The last season has passed. There is no time left to rebuild — whatever stands, stands.",
+        ribbon: "The years are done",
+        btn: "See how the years went ▸",
+      },
       repair: {
         title: "Rebuild",
         hint: "Tap the smoking, soaked, or cracked buildings to rebuild them and bring families home. This year's revenue lands once you finish the year.",
@@ -847,6 +919,9 @@ class SplashUI {
         btn: "Finish the year ▸",
       },
     }[phase];
+    // The practice year reuses every phase, just says so on every screen.
+    if (this.isTrial && TRIAL_COPY[phase]) Object.assign(copy, TRIAL_COPY[phase]);
+
     this.dom.ledgerPhase.textContent = copy.title;
     this.dom.ledgerHint.textContent = copy.hint;
     this.dom.ribbonText.textContent = copy.ribbon;
@@ -854,6 +929,7 @@ class SplashUI {
     // In the hazard phase the only way forward is picking a hazard.
     this.dom.primary.disabled = phase === "hazard";
     this.clearUndo();
+    this.renderTrialChrome();
     this.renderPanel();
     this.refreshActionable();
     if (phase === "damage") this.updateDamageButton();
@@ -863,6 +939,7 @@ class SplashUI {
     if (this.phase === "plan") this.beginSeason();
     else if (this.phase === "damage") this.applyDamageEntry();
     else if (this.phase === "repair") this.endYear();
+    else if (this.phase === "final") this.endYear();
   }
 
   /* ---- the season: hazard entry ▸ damage entry ▸ revenue ---- */
@@ -948,16 +1025,28 @@ class SplashUI {
     const g = this.game;
     await wait(400);
 
+    // After the final year's hazard there is no rebuilding — the game is over
+    // as soon as the damage is recorded. (The practice year is exempt.)
+    if (!this.isTrial && g.year >= g.totalYears) {
+      this.setPhase("final");
+      return;
+    }
+
     if (g.damagedProperties.length > 0) {
       this.setPhase("repair");
     } else {
-      this.dom.ribbonText.textContent = "A tidy year";
-      this.dom.primary.textContent = "Begin the next year ▸";
+      this.dom.ribbonText.textContent = this.isTrial ? "Practice year · nothing broke" : "A tidy year";
+      this.dom.primary.textContent = this.isTrial
+        ? "Finish practice · begin Year 1 ▸"
+        : "Begin the next year ▸";
       this.dom.primary.disabled = false;
       this.phase = "repair"; // primary → endYear; no damaged buildings to repair
       this.clearUndo();
-      this.dom.ledgerPhase.textContent = "All Is Well";
-      this.dom.ledgerHint.textContent = "Nothing to rebuild this year. Enjoy the calm and carry on.";
+      this.dom.ledgerPhase.textContent = this.isTrial ? "Practice: All Is Well" : "All Is Well";
+      this.dom.ledgerHint.textContent = this.isTrial
+        ? "Nothing broke, so there is nothing to rebuild. Finish the practice year to start for real."
+        : "Nothing to rebuild this year. Enjoy the calm and carry on.";
+      this.renderTrialChrome();
       this.renderPanel();
       this.refreshActionable();
     }
@@ -1013,6 +1102,12 @@ class SplashUI {
     this.flashStat(this.dom.statPop);
     this.log(`🪙 The town earns <b>${money(totalRevenue)}</b>. Fund is now ${money(g.budget)}.`, "j-money");
     await wait(1100);
+
+    // The practice year is thrown away: nothing recorded, nothing carried over.
+    if (this.isTrial) {
+      this.beginRealGame();
+      return;
+    }
 
     g.recordYear({
       year: g.year,

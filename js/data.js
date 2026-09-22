@@ -51,7 +51,7 @@ export const PROPERTY_COST = {
   "School": 1_500_000,
 };
 
-export const STARTING_BUDGET = 2_000_000;
+export const STARTING_BUDGET = 1_600_000;
 export const RESIDENTIAL_REVENUE_PER_PERSON = 5_000;
 
 export const CITY_POP_REVENUE_RATE = {
