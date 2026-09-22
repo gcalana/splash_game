@@ -11,7 +11,7 @@
  * between them.
  */
 
-import * as D from "./data.js";
+import * as D from "./data.js?v=7";
 
 const key = (hazard, prop) => `${hazard}|${prop}`;
 

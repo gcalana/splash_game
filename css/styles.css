@@ -699,6 +699,10 @@ body::after {
   transition: color 0.15s, border-color 0.15s;
 }
 .skip-trial-btn:hover { color: var(--terracotta-deep); border-bottom-color: var(--terracotta); }
+/* `display: block` above would otherwise beat the [hidden] attribute, leaving
+   the skip link on screen for the whole game. Belt and braces: a global rule
+   so no future `display` declaration can resurrect a hidden element. */
+[hidden] { display: none !important; }
 
 .title-card__practice {
   font-size: 12px;
@@ -934,7 +938,6 @@ body::after {
 .report-total + .report-total { margin-top: -10px; }
 .report-total--value { background: linear-gradient(180deg, #fdf6e6, #f4e7cd); }
 .report-total--value .report-total__note + .report-total__note { margin-top: 2px; opacity: 0.85; }
-.report-card__stars { font-size: 30px; letter-spacing: 4px; margin: 0 0 8px; }
 
 @keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
 

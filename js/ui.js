@@ -9,12 +9,17 @@
  * enters which hazard struck and which buildings it damaged.
  */
 
-import { SplashGame } from "./game.js";
-import * as D from "./data.js";
+// NOTE: the ?v= stamps below must be bumped together with the ones in
+// index.html on every deploy. Stamping only index.html is not enough: the
+// browser would load a fresh ui.js but keep a cached copy of these imports,
+// which shows up as $NaN / missing features. From this folder:
+//   grep -rl 'v=7' index.html js | xargs sed -i '' 's/v=7/v=8/g'      (macOS)
+import { SplashGame } from "./game.js?v=7";
+import * as D from "./data.js?v=7";
 import {
   buildingSprite, treeSprite, pineSprite, cloudSprite, flowerSprite,
   mountainSprite, reedSprite,
-} from "./sprites.js";
+} from "./sprites.js?v=7";
 
 /* ----------------------------------------------------------- helpers */
 const $ = (sel) => document.querySelector(sel);
@@ -27,6 +32,9 @@ const el = (tag, cls, html) => {
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function money(n) {
+  // Guard against undefined/NaN so a stale cached module degrades to a dash
+  // instead of rendering "$NaN" all over the report.
+  if (typeof n !== "number" || !Number.isFinite(n)) return "—";
   const sign = n < 0 ? "-" : "";
   const a = Math.abs(n);
   const trim = (v) => parseFloat(v.toFixed(2)).toString();
@@ -1141,23 +1149,9 @@ class SplashUI {
   /* ---- end game report ---- */
   endGame() {
     const g = this.game;
-    const popShare = g.totalPopulation / g.basePopulationTotal;
     const functional = g.functionalProperties.length;
-    let stars = 1;
-    if (popShare >= 0.5) stars = 2;
-    if (popShare >= 0.75 && functional >= 9) stars = 3;
-    if (popShare >= 0.9 && functional === g.properties.length && g.budget >= 1_000_000) stars = 4;
-    if (popShare >= 1 && functional === g.properties.length && g.budget >= 3_000_000) stars = 5;
-
-    const verdicts = {
-      1: "Cardinal Grove weathered hard years. The town endures.",
-      2: "A scrappy, resilient little town. Folks are proud.",
-      3: "A thriving, well-tended home by the river.",
-      4: "Cardinal Grove flourishes — a model town.",
-      5: "A golden age. Every light is on in Cardinal Grove.",
-    };
-
     const safe = this.stats.yearsAllSafe;
+    const yearWord = g.year === 1 ? "year" : "years";
 
     // Final town value: what is still standing, plus the cash left over.
     const valueLeft = g.townValueLeft;
@@ -1174,8 +1168,7 @@ class SplashUI {
     this.dom.reportCard.innerHTML = `
       <div class="title-card__emblem">🏡</div>
       <h2>The Years Pass…</h2>
-      <p class="report-card__verdict">${verdicts[stars]}</p>
-      <div class="report-card__stars">${"★".repeat(stars)}${"☆".repeat(5 - stars)}</div>
+      <p class="report-card__verdict">How Cardinal Grove came through ${g.year} ${yearWord}.</p>
       <div class="report-grid">
         <div class="report-stat"><span class="n">${money(g.budget)}</span><span class="l">Town Fund</span></div>
         <div class="report-stat"><span class="n">${g.totalPopulation} / ${g.basePopulationTotal}</span><span class="l">Townsfolk Home</span></div>
