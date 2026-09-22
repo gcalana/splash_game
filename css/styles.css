@@ -929,6 +929,11 @@ body::after {
 }
 .report-years__chip b { font-family: var(--font-display); font-size: 15px; font-weight: 600; }
 .report-years__chip small { font-size: 9px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: var(--ink-faint); }
+
+/* Two totals stack: town value, then population over time. */
+.report-total + .report-total { margin-top: -10px; }
+.report-total--value { background: linear-gradient(180deg, #fdf6e6, #f4e7cd); }
+.report-total--value .report-total__note + .report-total__note { margin-top: 2px; opacity: 0.85; }
 .report-card__stars { font-size: 30px; letter-spacing: 4px; margin: 0 0 8px; }
 
 @keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }

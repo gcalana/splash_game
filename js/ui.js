@@ -762,7 +762,7 @@ class SplashUI {
             this.renderUndo();
             this.updateHUD("budget");
             this.renderBuildings();
-            // reopen so post-repair mitigation can be bought
+            // reopen so the card reflects the rebuilt state
             const node = this.findNode(prop);
             this.openPopover(prop, node);
           }
@@ -774,8 +774,11 @@ class SplashUI {
       return;
     }
 
-    // mitigation options (wildfire / earthquake)
-    const options = g.propertyMitigationOptions(prop);
+    // Retrofits are a start-of-year decision only: nothing can be bought once
+    // the season has turned, so the repair phase offers rebuilding and nothing else.
+    const canRetrofit = this.phase === "plan";
+    const available = g.propertyMitigationOptions(prop);
+    const options = canRetrofit ? available : [];
     for (const opt of options) {
       const meta = D.HAZARD_META[opt.hazard];
       const can = opt.cost <= g.budget;
@@ -808,6 +811,14 @@ class SplashUI {
     if ((g.isExposed("small_flood", prop) || g.isExposed("big_flood", prop)) &&
         (g.mitigateSmallFlood || g.mitigateBigFlood)) have.push("💧 flood");
     if (have.length) actions.appendChild(el("div", "popover__protected", `🛡 Protected: ${have.join(", ")}`));
+
+    if (!canRetrofit) {
+      const note = available.length
+        ? "Retrofits are bought at the start of the year, before the season turns."
+        : "Nothing more to do here this year.";
+      actions.appendChild(el("p", "popover__note", note));
+      return;
+    }
 
     if (!options.length && !have.length) {
       const note = (g.isExposed("small_flood", prop) || g.isExposed("big_flood", prop))
@@ -914,7 +925,7 @@ class SplashUI {
       },
       repair: {
         title: "Rebuild",
-        hint: "Tap the smoking, soaked, or cracked buildings to rebuild them and bring families home. This year's revenue lands once you finish the year.",
+        hint: "Tap the smoking, soaked, or cracked buildings to rebuild them. Retrofits wait until next year's planning. This year's revenue lands once you finish the year.",
         ribbon: "Rebuild the town",
         btn: "Finish the year ▸",
       },
@@ -1148,6 +1159,11 @@ class SplashUI {
 
     const safe = this.stats.yearsAllSafe;
 
+    // Final town value: what is still standing, plus the cash left over.
+    const valueLeft = g.townValueLeft;
+    const valueLost = g.townValueLost;
+    const finalValue = g.finalValue;
+
     // Population over time: the year-end population totalled across the game.
     const popOverTime = g.populationOverTime;
     const maxPopOverTime = g.maxPopulationOverTime;
@@ -1165,6 +1181,16 @@ class SplashUI {
         <div class="report-stat"><span class="n">${g.totalPopulation} / ${g.basePopulationTotal}</span><span class="l">Townsfolk Home</span></div>
         <div class="report-stat"><span class="n">${functional} / ${g.properties.length}</span><span class="l">Buildings Standing</span></div>
         <div class="report-stat"><span class="n">${safe}</span><span class="l">Calm Years</span></div>
+      </div>
+      <div class="report-total report-total--value">
+        <span class="report-total__n">${money(finalValue)}</span>
+        <span class="report-total__l">Final Town Value</span>
+        <span class="report-total__note">
+          ${money(valueLeft)} standing in buildings + ${money(g.budget)} in the fund
+        </span>
+        <span class="report-total__note">
+          ${money(valueLost)} of ${money(g.originalTownValue)} lost to hazards
+        </span>
       </div>
       <div class="report-total">
         <span class="report-total__n">${popOverTime.toLocaleString()}</span>

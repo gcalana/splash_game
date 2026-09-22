@@ -278,6 +278,31 @@ export class SplashGame {
     this.history.push(record);
   }
 
+  /* ----- town value -----
+   *
+   * Ported from splash_game_oop_manual_input_v4.py: a damaged building is
+   * worth $0 until it is rebuilt, and the town's final worth is the value
+   * still standing plus whatever cash is left unspent.
+   */
+  get originalTownValue() {
+    return this.properties.reduce((sum, p) => sum + (D.PROPERTY_COST[p] ?? 0), 0);
+  }
+
+  get townValueLeft() {
+    return this.properties
+      .filter((p) => this.buildingFunctional[p])
+      .reduce((sum, p) => sum + (D.PROPERTY_COST[p] ?? 0), 0);
+  }
+
+  get townValueLost() {
+    return this.originalTownValue - this.townValueLeft;
+  }
+
+  /* Value left standing in the town plus unspent budget. */
+  get finalValue() {
+    return this.townValueLeft + this.budget;
+  }
+
   /* Year-end population for each completed year, in order. */
   get populationByYear() {
     return this.history.map((r) => r.population ?? 0);
