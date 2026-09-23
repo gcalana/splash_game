@@ -13,13 +13,13 @@
 // index.html on every deploy. Stamping only index.html is not enough: the
 // browser would load a fresh ui.js but keep a cached copy of these imports,
 // which shows up as $NaN / missing features. From this folder:
-//   grep -rl 'v=7' index.html js | xargs sed -i '' 's/v=7/v=8/g'      (macOS)
-import { SplashGame } from "./game.js?v=7";
-import * as D from "./data.js?v=7";
+//   grep -rl 'v=8' index.html js | xargs sed -i '' 's/v=8/v=9/g'      (macOS)
+import { SplashGame } from "./game.js?v=8";
+import * as D from "./data.js?v=8";
 import {
   buildingSprite, treeSprite, pineSprite, cloudSprite, flowerSprite,
-  mountainSprite, reedSprite,
-} from "./sprites.js?v=7";
+  mountainSprite, reedSprite, leveeSprite, sandbagSprite, HIGH_CODE_HOUSES,
+} from "./sprites.js?v=8";
 
 /* ----------------------------------------------------------- helpers */
 const $ = (sel) => document.querySelector(sel);
@@ -85,6 +85,17 @@ const FLOWERS = [
 ];
 const REEDS = [
   [22, 90], [40, 92], [57, 90], [75, 89], [33, 93], [69, 93], [9, 91],
+];
+
+/* River defenses stand on the sandy shore, between the town and the water.
+   [x%, y%, rotation°] — the line follows the curve of the bank. */
+const DEFENSE_LINE = [
+  [5, 89, -3], [9.5, 88.6, -3], [14, 88.2, -3], [18.5, 87.9, -2],
+  [23, 87.6, -1], [27.5, 87.8, 0], [32, 88, 1], [36.5, 88.35, 1],
+  [41, 88.7, 2], [45.5, 89.1, 2], [50, 89.5, 3], [54.5, 89.85, 3],
+  [59, 90.2, 3], [63.5, 90.5, 3], [68, 90.8, 3], [72.5, 91.1, 2],
+  [77, 91.4, 1], [81.5, 91.1, -1], [86, 90.8, -2], [90.5, 90.15, -3],
+  [95, 89.5, -4],
 ];
 
 const KIND_LABEL = {
@@ -219,6 +230,7 @@ class SplashUI {
     this.marked = new Set();     // buildings the player marked as damaged
     this.undoStack = [];         // reversible decisions made in this phase
     this.isTrial = false;        // true during the throwaway practice year
+    this._defenseTier = null;    // which river defense is currently drawn
     this.stats = { hazards: [], buildingsLost: 0, yearsAllSafe: 0 };
 
     this.cacheDom();
@@ -239,6 +251,7 @@ class SplashUI {
       bg: $("#scene-bg"),
       scenery: $("#scenery"),
       zones: $("#zones"),
+      defenses: $("#defenses"),
       clouds: $("#clouds"),
       buildings: $("#buildings"),
       fx: $("#fx"),
@@ -309,6 +322,48 @@ class SplashUI {
       const s = el("div", "sprite sprite--flower", flowerSprite(c));
       s.style.left = x + "%"; s.style.top = y + "%";
       layer.appendChild(s);
+    }
+  }
+
+  /*
+   * Draws the town's river defenses along the shore: sandbags for the
+   * small-flood purchase, an earth-and-stone levee for the big-flood one.
+   * The first time a tier appears the blocks rise into place one after
+   * another; after that they simply stay put. Undo removes them again.
+   */
+  renderRiverDefenses() {
+    const layer = this.dom.defenses;
+    const g = this.game;
+    if (!layer || !g) return;
+
+    const tier = g.mitigateBigFlood ? "levee" : g.mitigateSmallFlood ? "sandbag" : null;
+    if (tier === this._defenseTier) return;   // nothing changed, leave it alone
+
+    const isNew = Boolean(tier);
+    this._defenseTier = tier;
+    layer.innerHTML = "";
+    if (!tier) return;
+
+    DEFENSE_LINE.forEach(([x, y, rot], i) => {
+      const node = el(
+        "div",
+        `defense defense--${tier}` + (isNew ? " is-building" : ""),
+        tier === "levee" ? leveeSprite() : sandbagSprite()
+      );
+      node.style.left = x + "%";
+      node.style.top = y + "%";
+      node.style.setProperty("--rot", rot + "deg");
+      node.style.setProperty("--i", i);
+      layer.appendChild(node);
+    });
+
+    if (isNew) {
+      // drop the build class once the wave has passed so later re-renders
+      // don't replay it
+      const total = 300 + DEFENSE_LINE.length * 70 + 520;
+      setTimeout(() => {
+        for (const n of layer.children) n.classList.remove("is-building");
+      }, total);
     }
   }
 
@@ -419,6 +474,8 @@ class SplashUI {
   /* Fresh town, fresh books — shared by the practice year and the real game. */
   resetRun() {
     this.game = new SplashGame({ totalYears: this.totalYears });
+    this._defenseTier = null;
+    if (this.dom.defenses) this.dom.defenses.innerHTML = "";
     this.stats = { hazards: [], buildingsLost: 0, yearsAllSafe: 0 };
     this.currentHazard = null;
     this.marked = new Set();
@@ -495,6 +552,7 @@ class SplashUI {
       });
       this.dom.buildings.appendChild(node);
     }
+    this.renderRiverDefenses();
     this.refreshActionable();
   }
 
@@ -699,8 +757,12 @@ class SplashUI {
     const label = D.PROPERTY_LABEL[prop];
     const functional = g.buildingFunctional[prop];
 
+    const build = kind === "house"
+      ? (HIGH_CODE_HOUSES.has(prop) ? " · built to a higher code" : " · older building code")
+      : "";
+
     let body = `<h3 class="popover__name">${label}</h3>
-      <p class="popover__kind">${KIND_LABEL[kind]}</p>
+      <p class="popover__kind">${KIND_LABEL[kind]}${build}</p>
       <div class="popover__meta">`;
 
     if (g.basePopulation[prop] > 0) {
@@ -893,6 +955,7 @@ class SplashUI {
     const entry = this.undoStack.pop();
     if (!entry) return;
     this.game.restore(entry.snap);
+    this._defenseTier = undefined;   // force the defense layer to re-evaluate
     this.log(`↩ Undid ${entry.label}. The fund is back to ${money(this.game.budget)}.`, "j-undo");
     this.closePopover();
     this.renderBuildings();
@@ -1086,10 +1149,14 @@ class SplashUI {
   async playHazardFx(hazard) {
     const scene = this.dom.scene;
     if (hazard === "wildfire") scene.classList.add("flash-fire");
-    else if (hazard === "small_flood" || hazard === "big_flood") scene.classList.add("flash-flood");
+    else if (hazard === "small_flood" || hazard === "big_flood") {
+      scene.classList.add("flash-flood");
+      if (this._defenseTier) this.dom.defenses.classList.add("is-holding");
+    }
     else if (hazard === "earthquake") { scene.classList.add("flash-quake", "shaking"); }
     await wait(1400);
     scene.classList.remove("flash-fire", "flash-flood", "flash-quake", "shaking");
+    this.dom.defenses.classList.remove("is-holding");
   }
 
   spawnCoins(byProperty) {

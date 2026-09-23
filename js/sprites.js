@@ -41,6 +41,52 @@ function houseSprite(variant = 0) {
   </svg>`;
 }
 
+/*
+ * Houses 1, 5 and 6 were built to a higher code. Same storybook palette as
+ * their neighbours, but visibly more robust: two storeys, a heavy timber
+ * roof, a stone footing and braced corners.
+ */
+function highCodeHouse() {
+  const wall = "#fbf8f1";
+  const wallShade = "#ece5d6";
+  const roof = "#6f4a2d";
+  const roofShade = "#5a3a22";
+  const door = "#7b4a2a";
+  const glass = "#ffe9b0";
+  const stone = "#b9b4a4";
+  return `
+  <svg viewBox="0 0 100 100" class="bsvg" xmlns="http://www.w3.org/2000/svg">
+    <ellipse cx="50" cy="93" rx="35" ry="5.5" fill="rgba(74,53,39,.18)"/>
+
+    <!-- upper storey -->
+    <rect x="24" y="38" width="52" height="24" rx="2" fill="${wall}" stroke="${INK}" stroke-width="3"/>
+    <!-- heavy timber roof with deep eaves -->
+    <path d="M17 40 L50 17 L83 40 Z" fill="${roof}" stroke="#3f2d20" stroke-width="3.2" stroke-linejoin="round"/>
+    <path d="M50 17 L83 40 L50 40 Z" fill="${roofShade}"/>
+    <path d="M17 40 L83 40" stroke="#3f2d20" stroke-width="3.2" stroke-linecap="round"/>
+    <path d="M50 17 L50 40" stroke="#3f2d20" stroke-width="1.6" opacity=".5"/>
+
+    <!-- lower storey -->
+    <rect x="20" y="62" width="60" height="26" rx="2" fill="${wall}" stroke="${INK}" stroke-width="3"/>
+    <rect x="20" y="60" width="60" height="5" rx="1.5" fill="${roof}" stroke="${INK}" stroke-width="2.4"/>
+    <!-- stone footing -->
+    <rect x="20" y="84" width="60" height="7" rx="1.5" fill="${stone}" stroke="${INK}" stroke-width="2.4"/>
+    <path d="M32 84 L32 91 M46 84 L46 91 M60 84 L60 91 M70 84 L70 91"
+          stroke="${INK}" stroke-width="1.3" opacity=".55"/>
+    <!-- braced corners -->
+    <path d="M24 66 L31 73 M76 66 L69 73" stroke="${roof}" stroke-width="2.6"
+          stroke-linecap="round" opacity=".8"/>
+
+    <!-- windows + door -->
+    <rect x="31" y="43" width="13" height="13" rx="1.5" fill="${glass}" stroke="${INK}" stroke-width="2.4"/>
+    <rect x="56" y="43" width="13" height="13" rx="1.5" fill="${glass}" stroke="${INK}" stroke-width="2.4"/>
+    <rect x="58" y="68" width="14" height="13" rx="1.5" fill="${glass}" stroke="${INK}" stroke-width="2.4"/>
+    <rect x="28" y="68" width="16" height="20" rx="1.5" fill="${door}" stroke="${INK}" stroke-width="2.6"/>
+    <circle cx="40.5" cy="79" r="1.5" fill="#ffe9b0"/>
+    <rect x="72" y="62" width="8" height="26" fill="${wallShade}" opacity=".7"/>
+  </svg>`;
+}
+
 function apartmentSprite() {
   const wall = "#e9d2b6";
   const trim = "#c98a5e";
@@ -125,13 +171,19 @@ const HOUSE_VARIANT = {
   "House 5": 4, "House 6": 5, "House 7": 6,
 };
 
+/* The three homes built to a higher code. */
+export const HIGH_CODE_HOUSES = new Set(["House 1", "House 5", "House 6"]);
+
 export function buildingSprite(kind, propName) {
   switch (kind) {
     case "apartment": return apartmentSprite();
     case "grocery": return grocerySprite();
     case "hospital": return hospitalSprite();
     case "school": return schoolSprite();
-    default: return houseSprite(HOUSE_VARIANT[propName] ?? 0);
+    default:
+      return HIGH_CODE_HOUSES.has(propName)
+        ? highCodeHouse()
+        : houseSprite(HOUSE_VARIANT[propName] ?? 0);
   }
 }
 
@@ -214,4 +266,41 @@ export function cloudSprite() {
       <circle cx="26" cy="26" r="16"/><circle cx="46" cy="20" r="20"/>
       <circle cx="66" cy="27" r="15"/><rect x="22" y="26" width="50" height="16" rx="8"/>
     </g></svg>`;
+}
+
+/* ---- river defenses ---- */
+
+/*
+ * One block of the big-flood levee: an earth embankment faced with stone,
+ * drawn so a row of them reads as a continuous wall along the bank.
+ */
+export function leveeSprite() {
+  const earth = "#a89a72";
+  const earthDark = "#877a57";
+  const stone = "#d2ccb8";
+  return `<svg viewBox="0 0 60 44" xmlns="http://www.w3.org/2000/svg">
+    <path d="M2 42 L12 14 L48 14 L58 42 Z" fill="${earth}" stroke="${INK}"
+          stroke-width="2.6" stroke-linejoin="round"/>
+    <path d="M30 14 L30 42" stroke="${earthDark}" stroke-width="1.6" opacity=".45"/>
+    <rect x="10" y="9" width="40" height="9" rx="2" fill="${stone}" stroke="${INK}" stroke-width="2.4"/>
+    <path d="M20 9 L20 18 M30 9 L30 18 M40 9 L40 18" stroke="${INK}" stroke-width="1.4" opacity=".5"/>
+    <path d="M16 9 q 2 -5 4 0 M44 9 q 2 -5 4 0" fill="none" stroke="#5f8f4f"
+          stroke-width="2" stroke-linecap="round"/>
+  </svg>`;
+}
+
+/* A stack of sandbags — the small-flood defense. */
+export function sandbagSprite() {
+  const bag = "#cdb98c";
+  const bagDark = "#b6a274";
+  return `<svg viewBox="0 0 56 30" xmlns="http://www.w3.org/2000/svg">
+    <g stroke="${INK}" stroke-width="2.2">
+      <ellipse cx="12" cy="24" rx="11" ry="6" fill="${bag}"/>
+      <ellipse cx="30" cy="24" rx="11" ry="6" fill="${bagDark}"/>
+      <ellipse cx="46" cy="24" rx="10" ry="6" fill="${bag}"/>
+      <ellipse cx="21" cy="14" rx="11" ry="6" fill="${bagDark}"/>
+      <ellipse cx="39" cy="14" rx="11" ry="6" fill="${bag}"/>
+      <ellipse cx="30" cy="5" rx="11" ry="6" fill="${bag}"/>
+    </g>
+  </svg>`;
 }
