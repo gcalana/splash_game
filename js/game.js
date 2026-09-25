@@ -11,7 +11,7 @@
  * between them.
  */
 
-import * as D from "./data.js?v=10";
+import * as D from "./data.js?v=13";
 
 const key = (hazard, prop) => `${hazard}|${prop}`;
 
@@ -281,7 +281,7 @@ export class SplashGame {
   /* ----- town value -----
    *
    * Ported from splash_game_oop_manual_input_v4.py: a damaged building is
-   * worth $0 until it is rebuilt, and the town's final worth is the value
+   * worth $0 until it is repaired, and the town's final worth is the value
    * still standing plus whatever cash is left unspent.
    */
   get originalTownValue() {

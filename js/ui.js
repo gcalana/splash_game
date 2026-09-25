@@ -2,7 +2,7 @@
  * Splash — UI controller
  *
  * Drives the cozy diorama: lays out the town, runs the yearly phase machine
- * (Plan ▸ Enter hazard ▸ Enter damage ▸ Harvest ▸ Rebuild), animates hazards,
+ * (Plan ▸ Enter hazard ▸ Enter damage ▸ Harvest ▸ Repair), animates hazards,
  * and wires every decision back to the SplashGame engine.
  *
  * Matches splash_game_oop_manual_input_v4.py: nothing is rolled. The player
@@ -13,9 +13,9 @@
 // index.html on every deploy. Stamping only index.html is not enough: the
 // browser would load a fresh ui.js but keep a cached copy of these imports,
 // which shows up as $NaN / missing features. From this folder:
-//   grep -rl 'v=10' index.html js | xargs sed -i '' 's/v=10/v=11/g'      (macOS)
-import { SplashGame } from "./game.js?v=10";
-import * as D from "./data.js?v=10";
+//   grep -rl 'v=13' index.html js | xargs sed -i '' 's/v=13/v=14/g'      (macOS)
+import { SplashGame } from "./game.js?v=13";
+import * as D from "./data.js?v=13";
 /* The painted town supplies all the scenery; sprites.js is no longer used. */
 
 /* ----------------------------------------------------------- helpers */
@@ -65,12 +65,6 @@ const HOTSPOTS = {
   "Hospital": { x: 1420, y: 632, w: 195, h: 168 },
 };
 
-/* Where the floating risk labels sit on the painted map. */
-const ZONE_TAGS = [
-  { cls: "zone-tag--fire", text: "🔥 Wildfire Risk", x: 2.5, y: 6 },
-  { cls: "zone-tag--flood", text: "🌊 Flood Risk", x: 78, y: 90 },
-];
-
 const KIND_LABEL = {
   house: "Home", apartment: "Apartments",
   grocery: "Grocery", hospital: "Hospital", school: "School",
@@ -81,7 +75,7 @@ const KIND_LABEL = {
  * One painted image fills the scene. Everything that used to be drawn as SVG
  * scenery — mountains, forest, river, bridge, meadow — is part of the picture.
  */
-const TOWN_ART = "img/town.jpg?v=10";
+const TOWN_ART = "img/town.jpg?v=13";
 const TOWN_ALT =
   "A forested mountain town: seven homes, an apartment building, a school, " +
   "a grocery store and a hospital beside a winding river and a timber bridge.";
@@ -90,7 +84,7 @@ const TOWN_ALT =
 /*
  * Wording for the practice year. Same phases as a real year, but every screen
  * says plainly that nothing counts, so a new player can poke at retrofits,
- * hazards, damage and rebuilding once before the town is really at stake.
+ * hazards, damage and repairing once before the town is really at stake.
  */
 const TRIAL_COPY = {
   plan: {
@@ -109,9 +103,9 @@ const TRIAL_COPY = {
     ribbon: "Practice year · record damage",
   },
   repair: {
-    title: "Practice: Rebuild",
-    hint: "Tap a damaged building to rebuild it; undo works here too. When you have seen enough, finish the practice year and the real game begins.",
-    ribbon: "Practice year · rebuild",
+    title: "Practice: Repair",
+    hint: "Tap a damaged building to repair it; undo works here too. When you have seen enough, finish the practice year and the real game begins.",
+    ribbon: "Practice year · repair",
     btn: "Finish practice · begin Year 1 ▸",
   },
 };
@@ -179,19 +173,7 @@ class SplashUI {
       `<img class="scene__art" src="${TOWN_ART}" alt="${TOWN_ALT}" draggable="false">`;
     this.dom.scenery.innerHTML = "";
     this.dom.clouds.innerHTML = "";
-    this.buildZoneTags();
     this.bindLegend();
-  }
-
-  buildZoneTags() {
-    const layer = this.dom.zones;
-    layer.innerHTML = "";
-    for (const t of ZONE_TAGS) {
-      const tag = el("div", `zone-tag ${t.cls}`, t.text);
-      tag.style.left = t.x + "%";
-      tag.style.top = t.y + "%";
-      layer.appendChild(tag);
-    }
   }
 
   bindLegend() {
@@ -246,14 +228,14 @@ class SplashUI {
 
   /*
    * Every game opens with a throwaway practice year: one full turn of
-   * retrofit ▸ hazard ▸ damage ▸ rebuild on a town that is thrown away
+   * retrofit ▸ hazard ▸ damage ▸ repair on a town that is thrown away
    * afterwards. beginRealGame() then starts Year 1 from a clean slate.
    */
   startGame() {
     this.isTrial = true;
     this.resetRun();
     this.log(
-      "<b>Practice year.</b> One run through the whole cycle — retrofit, hazard, damage, rebuild. Nothing here counts.",
+      "<b>Practice year.</b> One run through the whole cycle — retrofit, hazard, damage, repair. Nothing here counts.",
       "j-year"
     );
     this.log("Spend freely and break things; the town resets when you finish.", "j-undo");
@@ -323,12 +305,6 @@ class SplashUI {
       node.dataset.prop = prop;
       node.title = prop;
 
-      // population pill (residential, functional only)
-      const basePop = g.basePopulation[prop];
-      if (basePop > 0 && g.buildingFunctional[prop]) {
-        node.appendChild(el("div", "building__pop", `🧍 ${g.population[prop]}`));
-      }
-
       // damage state
       if (!g.buildingFunctional[prop]) {
         const cause = g.damageCausedBy[prop];
@@ -379,7 +355,9 @@ class SplashUI {
       node.classList.remove("is-actionable", "is-selected", "is-marked");
       let active = false;
       if (this.phase === "plan") {
-        active = g.buildingFunctional[prop] && g.propertyMitigationOptions(prop).length > 0;
+        // every building has a retrofit available at the start of the year,
+        // so highlighting them all would say nothing — leave the map clean
+        active = false;
       } else if (this.phase === "damage") {
         active = g.canBeDamagedBy(this.currentHazard, prop);
         if (this.marked.has(prop)) node.classList.add("is-marked");
@@ -622,18 +600,18 @@ class SplashUI {
       if (this.phase === "repair") {
         const can = g.canRepair(prop);
         const btn = el("button", "act-btn act-btn--repair" + (can ? "" : ""),
-          `<span>🔨 Rebuild</span><span class="cost">${money(cost)}</span>`);
+          `<span>🔨 Repair</span><span class="cost">${money(cost)}</span>`);
         btn.disabled = !can;
         if (!can) btn.title = "Not enough in the town fund.";
         btn.addEventListener("click", () => {
           const undoPoint = g.snapshot();
           if (g.repair(prop)) {
-            this.undoStack.push({ label: `rebuilding ${D.PROPERTY_LABEL[prop]}`, snap: undoPoint });
-            this.log(`🔨 Rebuilt <b>${D.PROPERTY_LABEL[prop]}</b> for ${money(cost)}. Families move back in.`, "j-good");
+            this.undoStack.push({ label: `repairing ${D.PROPERTY_LABEL[prop]}`, snap: undoPoint });
+            this.log(`🔨 Repaired <b>${D.PROPERTY_LABEL[prop]}</b> for ${money(cost)}. Families move back in.`, "j-good");
             this.renderUndo();
             this.updateHUD("budget");
             this.renderBuildings();
-            // reopen so the card reflects the rebuilt state
+            // reopen so the card reflects the repaired state
             const node = this.findNode(prop);
             this.openPopover(prop, node);
           }
@@ -646,7 +624,7 @@ class SplashUI {
     }
 
     // Retrofits are a start-of-year decision only: nothing can be bought once
-    // the season has turned, so the repair phase offers rebuilding and nothing else.
+    // the season has turned, so the repair phase offers repairing and nothing else.
     const canRetrofit = this.phase === "plan";
     const available = g.propertyMitigationOptions(prop);
     const options = canRetrofit ? available : [];
@@ -717,7 +695,7 @@ class SplashUI {
    * The CSV needs more than the HUD shows, so each year is measured at its
    * phase boundaries: what the town looked like when planning opened, what
    * changed by the time the hazard was entered, what the hazard broke, and
-   * what was rebuilt. Deriving everything from snapshots (rather than adding
+   * what was repaired. Deriving everything from snapshots (rather than adding
    * up purchases as they happen) means undo needs no special handling.
    */
   startYearLog() {
@@ -844,14 +822,14 @@ class SplashUI {
       },
       final: {
         title: "The Final Reckoning",
-        hint: "The last season has passed. There is no time left to rebuild — whatever stands, stands.",
+        hint: "The last season has passed. There is no time left to repair — whatever stands, stands.",
         ribbon: "The years are done",
         btn: "See how the years went ▸",
       },
       repair: {
-        title: "Rebuild",
-        hint: "Tap the smoking, soaked, or cracked buildings to rebuild them. Retrofits wait until next year's planning. This year's revenue lands once you finish the year.",
-        ribbon: "Rebuild the town",
+        title: "Repair",
+        hint: "Tap the smoking, soaked, or cracked buildings to repair them. Retrofits wait until next year's planning. This year's revenue lands once you finish the year.",
+        ribbon: "Repair the town",
         btn: "Finish the year ▸",
       },
     }[phase];
@@ -959,18 +937,18 @@ class SplashUI {
     await this.afterDamage();
   }
 
-  /* ---- on to rebuilding (revenue comes after, as in the Python) ---- */
+  /* ---- on to repairing (revenue comes after, as in the Python) ---- */
   async afterDamage() {
     const g = this.game;
     await wait(400);
 
-    // the rebuild phase starts here; note what is broken and what is in hand
+    // the repair phase starts here; note what is broken and what is in hand
     if (this.yearLog) {
       this.yearLog.repairStartBudget = g.budget;
       this.yearLog.brokenAtRepairStart = g.damagedProperties;
     }
 
-    // After the final year's hazard there is no rebuilding — the game is over
+    // After the final year's hazard there is no repairing — the game is over
     // as soon as the damage is recorded. (The practice year is exempt.)
     if (!this.isTrial && g.year >= g.totalYears) {
       this.setPhase("final");
@@ -989,8 +967,8 @@ class SplashUI {
       this.clearUndo();
       this.dom.ledgerPhase.textContent = this.isTrial ? "Practice: All Is Well" : "All Is Well";
       this.dom.ledgerHint.textContent = this.isTrial
-        ? "Nothing broke, so there is nothing to rebuild. Finish the practice year to start for real."
-        : "Nothing to rebuild this year. Enjoy the calm and carry on.";
+        ? "Nothing broke, so there is nothing to repair. Finish the practice year to start for real."
+        : "Nothing to repair this year. Enjoy the calm and carry on.";
       this.renderTrialChrome();
       this.renderPanel();
       this.refreshActionable();
@@ -1023,11 +1001,12 @@ class SplashUI {
       if (amount <= 0) continue;
       const node = this.findNode(prop);
       if (!node) continue;
-      const sceneRect = this.dom.scene.getBoundingClientRect();
+      // position relative to the fx layer, which sits inside the art board
+      const layerRect = this.dom.fx.getBoundingClientRect();
       const r = node.getBoundingClientRect();
       const coin = el("div", "float-coin", `+${money(amount)}`);
-      coin.style.left = r.left - sceneRect.left + r.width / 2 - 14 + "px";
-      coin.style.top = r.top - sceneRect.top + "px";
+      coin.style.left = r.left - layerRect.left + r.width / 2 - 14 + "px";
+      coin.style.top = r.top - layerRect.top + "px";
       this.dom.fx.appendChild(coin);
       setTimeout(() => coin.remove(), 1500);
     }
@@ -1042,7 +1021,7 @@ class SplashUI {
     // the budget the town started the year with.
     this.dom.primary.disabled = true;
 
-    // close out the rebuild phase before revenue lands
+    // close out the repair phase before revenue lands
     const log = this.yearLog;
     if (log) {
       const brokenNow = g.damagedProperties;
