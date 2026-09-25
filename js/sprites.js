@@ -1,6 +1,10 @@
 /*
  * Splash — hand-illustrated SVG sprites
  *
+ * NOTE: no longer used. The town is now a painted illustration (img/town.jpg)
+ * with clickable hotspots laid over it; this file is kept only in case the
+ * drawn diorama is ever restored.
+ *
  * Every building is drawn in the same cozy storybook style: warm fills, a
  * soft cocoa outline, simple geometry. Houses get color variants so the town
  * feels lived-in. Damage and protection effects are layered on in CSS, so

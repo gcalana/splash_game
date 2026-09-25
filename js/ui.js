@@ -13,13 +13,10 @@
 // index.html on every deploy. Stamping only index.html is not enough: the
 // browser would load a fresh ui.js but keep a cached copy of these imports,
 // which shows up as $NaN / missing features. From this folder:
-//   grep -rl 'v=8' index.html js | xargs sed -i '' 's/v=8/v=9/g'      (macOS)
-import { SplashGame } from "./game.js?v=8";
-import * as D from "./data.js?v=8";
-import {
-  buildingSprite, treeSprite, pineSprite, cloudSprite, flowerSprite,
-  mountainSprite, reedSprite, leveeSprite, sandbagSprite, HIGH_CODE_HOUSES,
-} from "./sprites.js?v=8";
+//   grep -rl 'v=10' index.html js | xargs sed -i '' 's/v=10/v=11/g'      (macOS)
+import { SplashGame } from "./game.js?v=10";
+import * as D from "./data.js?v=10";
+/* The painted town supplies all the scenery; sprites.js is no longer used. */
 
 /* ----------------------------------------------------------- helpers */
 const $ = (sel) => document.querySelector(sel);
@@ -43,59 +40,35 @@ function money(n) {
   return `${sign}$${a}`;
 }
 
-/* Where each building sits in the diorama (% of the scene). These share the
-   same coordinate space as the background SVG (viewBox 1000×640, stretched to
-   fill), so buildings always land exactly on the painted ground and zones.
-   Wildfire homes sit on the forest ridge; flood-prone ones line the river;
-   House 4 + the Hospital rest in the safe central meadow. */
-const POSITIONS = {
-  // forested mountainside — wildfire zone (upper-left); homes sit on the
-  // lower slopes, below the peaks.
-  "House 2": { x: 24, y: 35 },
-  "House 1": { x: 9.5, y: 44 },
-  "Apartment Building": { x: 33, y: 47 },
-  "House 3": { x: 12, y: 59 },
-  // safe meadow (center)
-  "House 4": { x: 56, y: 55 },
-  "Hospital": { x: 77, y: 52 },
-  // riverbank floodplain — flood zone (bottom); on land, close to the water
-  "House 5": { x: 13, y: 78 },
-  "House 6": { x: 30, y: 83 },
-  "House 7": { x: 47.5, y: 78 },
-  "Grocery Store": { x: 66, y: 81 },
-  "School": { x: 85, y: 72 },
+/*
+ * The town is a painted illustration (img/town.jpg, 1672 x 800 after the
+ * painted HUD was cropped off). Each building is an invisible hotspot laid
+ * over the artwork, given in the artwork's own pixel coordinates and
+ * converted to percentages at render time, so everything scales together.
+ */
+const ART = { w: 1672, h: 800 };
+
+/* The three homes built to a higher code, as drawn in the artwork. */
+const HIGH_CODE_HOUSES = new Set(["House 1", "House 5", "House 6"]);
+
+const HOTSPOTS = {
+  "House 1": { x: 35, y: 282, w: 220, h: 193 },
+  "House 2": { x: 335, y: 253, w: 164, h: 161 },
+  "House 3": { x: 534, y: 150, w: 165, h: 145 },
+  "House 4": { x: 690, y: 292, w: 179, h: 153 },
+  "House 5": { x: 402, y: 588, w: 254, h: 188 },
+  "House 6": { x: 1280, y: 434, w: 241, h: 192 },
+  "House 7": { x: 1480, y: 177, w: 188, h: 159 },
+  "Apartment Building": { x: 790, y: 16, w: 150, h: 228 },
+  "School": { x: 715, y: 449, w: 220, h: 195 },
+  "Grocery Store": { x: 1032, y: 646, w: 228, h: 146 },
+  "Hospital": { x: 1420, y: 632, w: 195, h: 168 },
 };
 
-/* Decorative scenery, placed in scene % so it sits on the painted ground.
-   Mountains rise behind the forest; pines clothe the slopes; leafy trees +
-   flowers dot the meadow; reeds line the waterline. */
-const MOUNTAINS = [
-  { x: 6, y: 38, v: 1, size: "md" },
-  { x: 20, y: 35, v: 0, size: "lg" },
-  { x: 35, y: 33, v: 2, size: "md" },
-];
-const PINES = [
-  [4, 46], [19, 44], [33, 48], [2, 56], [27, 55], [13, 62], [42, 53],
-];
-const TREES = [
-  [49, 60, 0], [67, 57, 1], [91, 47, 2], [44, 67, 0], [73, 65, 1],
-];
-const FLOWERS = [
-  [52, 64, "#e8a0b0"], [62, 70, "#f0c14b"], [85, 61, "#cf7f8e"], [38, 71, "#f0c14b"],
-];
-const REEDS = [
-  [22, 90], [40, 92], [57, 90], [75, 89], [33, 93], [69, 93], [9, 91],
-];
-
-/* River defenses stand on the sandy shore, between the town and the water.
-   [x%, y%, rotation°] — the line follows the curve of the bank. */
-const DEFENSE_LINE = [
-  [5, 89, -3], [9.5, 88.6, -3], [14, 88.2, -3], [18.5, 87.9, -2],
-  [23, 87.6, -1], [27.5, 87.8, 0], [32, 88, 1], [36.5, 88.35, 1],
-  [41, 88.7, 2], [45.5, 89.1, 2], [50, 89.5, 3], [54.5, 89.85, 3],
-  [59, 90.2, 3], [63.5, 90.5, 3], [68, 90.8, 3], [72.5, 91.1, 2],
-  [77, 91.4, 1], [81.5, 91.1, -1], [86, 90.8, -2], [90.5, 90.15, -3],
-  [95, 89.5, -4],
+/* Where the floating risk labels sit on the painted map. */
+const ZONE_TAGS = [
+  { cls: "zone-tag--fire", text: "🔥 Wildfire Risk", x: 2.5, y: 6 },
+  { cls: "zone-tag--flood", text: "🌊 Flood Risk", x: 78, y: 90 },
 ];
 
 const KIND_LABEL = {
@@ -104,91 +77,14 @@ const KIND_LABEL = {
 };
 
 /* ----------------------------------------------------------- scene art */
-function sceneBackgroundSVG() {
-  // Design space 1000×640, stretched to exactly fill the scene
-  // (preserveAspectRatio="none") so it shares one coordinate system with the
-  // building/scenery layers. Only large organic bands live here — anything
-  // that mustn't distort (trees, sun, labels) is a DOM sprite instead.
-  // Strokes use non-scaling-stroke so borders stay an even thickness.
-  return `
-  <svg viewBox="0 0 1000 640" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-    <defs>
-      <linearGradient id="skyG" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="#cfeaf2"/>
-        <stop offset="1" stop-color="#e6f0e7"/>
-      </linearGradient>
-      <linearGradient id="meadowG" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="#dfe7b4"/>
-        <stop offset="1" stop-color="#cdd897"/>
-      </linearGradient>
-      <linearGradient id="forestG" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0" stop-color="#7ba268"/>
-        <stop offset="1" stop-color="#5f8450"/>
-      </linearGradient>
-      <linearGradient id="plainG" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="#cdcd8a"/>
-        <stop offset="1" stop-color="#bcc079"/>
-      </linearGradient>
-      <linearGradient id="sandG" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="#ecdcb0"/>
-        <stop offset="1" stop-color="#e0cc95"/>
-      </linearGradient>
-      <linearGradient id="riverG" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="#8cc1d6"/>
-        <stop offset="1" stop-color="#5a96bb"/>
-      </linearGradient>
-    </defs>
-
-    <!-- sky + distant hills + meadow -->
-    <rect x="0" y="0" width="1000" height="340" fill="url(#skyG)"/>
-    <path d="M0 308 Q 260 258 540 302 Q 780 340 1000 292 L1000 360 L0 360 Z" fill="#cfdcab" opacity=".7"/>
-    <rect x="0" y="306" width="1000" height="334" fill="url(#meadowG)"/>
-
-    <!-- WILDFIRE ZONE: forested lower slopes (peaks are DOM mountains on top).
-         A soft tree-line tops the green; warm tint + dashed border mark risk. -->
-    <path d="M-30 408 L-30 214 Q 120 150 270 188 Q 420 224 458 320 Q 472 366 452 408 Z" fill="url(#forestG)"/>
-    <path d="M-30 408 L-30 214 Q 120 150 270 188 Q 420 224 458 320 Q 472 366 452 408 Z" fill="#3f6b32" opacity=".14"/>
-    <path d="M-30 408 L-30 214 Q 120 150 270 188 Q 420 224 458 320 Q 472 366 452 408 Z" fill="#e07a3a" opacity=".10"/>
-    <path d="M-30 214 Q 120 150 270 188 Q 420 224 458 320 Q 472 366 452 408"
-          fill="none" stroke="#c9632f" stroke-width="3.5" stroke-dasharray="11 9"
-          vector-effect="non-scaling-stroke" opacity=".85"/>
-
-    <!-- winding path through the meadow -->
-    <path d="M250 330 Q 400 392 560 388 Q 740 384 884 470"
-          fill="none" stroke="#e7d4a6" stroke-width="30" stroke-linecap="round"
-          vector-effect="non-scaling-stroke"/>
-    <path d="M250 330 Q 400 392 560 388 Q 740 384 884 470"
-          fill="none" stroke="#d3bc88" stroke-width="30" stroke-linecap="round"
-          stroke-dasharray="2 32" vector-effect="non-scaling-stroke" opacity=".45"/>
-
-    <!-- FLOOD ZONE: low riverbank — damp grassy floodplain (land!), a sandy
-         shore, then the river. Dashed border marks where the water can reach. -->
-    <path d="M-30 452 Q 260 416 530 452 Q 780 484 1030 446 L1030 640 L-30 640 Z" fill="url(#plainG)"/>
-    <!-- patches of damp grass for texture -->
-    <path d="M-30 470 Q 200 448 430 472 Q 360 486 250 480 Q 120 474 -30 486 Z" fill="#c2c57f" opacity=".55"/>
-    <path d="M560 486 Q 760 470 1030 486 L1030 506 Q 800 492 600 506 Z" fill="#c2c57f" opacity=".5"/>
-    <!-- sandy shore -->
-    <path d="M-30 556 Q 260 530 540 560 Q 790 588 1030 552 L1030 640 L-30 640 Z" fill="url(#sandG)"/>
-    <!-- the river -->
-    <path d="M-30 588 Q 270 562 560 592 Q 800 616 1030 582 L1030 700 L-30 700 Z" fill="url(#riverG)"/>
-    <path d="M-30 588 Q 270 562 560 592 Q 800 616 1030 582"
-          fill="none" stroke="#ecf7fa" stroke-width="3.5" vector-effect="non-scaling-stroke" opacity=".7"/>
-    <path d="M-30 624 Q 280 600 570 628 Q 810 650 1030 618"
-          fill="none" stroke="#d6eef3" stroke-width="2.5" vector-effect="non-scaling-stroke" opacity=".5"/>
-    <!-- dashed flood-risk border along the top of the plain -->
-    <path d="M-30 452 Q 260 416 530 452 Q 780 484 1030 446"
-          fill="none" stroke="#3f8aa8" stroke-width="3.5" stroke-dasharray="11 9"
-          vector-effect="non-scaling-stroke" opacity=".85"/>
-    <!-- pebbles + lily pads near the water -->
-    <g fill="#b9b29c" stroke="#4a3527" stroke-width="2" vector-effect="non-scaling-stroke">
-      <ellipse cx="150" cy="566" rx="11" ry="6"/><ellipse cx="172" cy="572" rx="7" ry="4"/>
-      <ellipse cx="690" cy="572" rx="10" ry="6"/><ellipse cx="712" cy="576" rx="6" ry="4"/>
-    </g>
-    <g fill="#7fae73" stroke="#4a3527" stroke-width="2" vector-effect="non-scaling-stroke" opacity=".9">
-      <ellipse cx="430" cy="618" rx="16" ry="7"/><ellipse cx="860" cy="612" rx="14" ry="6"/>
-    </g>
-  </svg>`;
-}
+/*
+ * One painted image fills the scene. Everything that used to be drawn as SVG
+ * scenery — mountains, forest, river, bridge, meadow — is part of the picture.
+ */
+const TOWN_ART = "img/town.jpg?v=10";
+const TOWN_ALT =
+  "A forested mountain town: seven homes, an apartment building, a school, " +
+  "a grocery store and a hospital beside a winding river and a timber bridge.";
 
 /* ----------------------------------------------------------- app */
 /*
@@ -230,7 +126,6 @@ class SplashUI {
     this.marked = new Set();     // buildings the player marked as damaged
     this.undoStack = [];         // reversible decisions made in this phase
     this.isTrial = false;        // true during the throwaway practice year
-    this._defenseTier = null;    // which river defense is currently drawn
     this.stats = { hazards: [], buildingsLost: 0, yearsAllSafe: 0 };
 
     this.cacheDom();
@@ -251,7 +146,6 @@ class SplashUI {
       bg: $("#scene-bg"),
       scenery: $("#scenery"),
       zones: $("#zones"),
-      defenses: $("#defenses"),
       clouds: $("#clouds"),
       buildings: $("#buildings"),
       fx: $("#fx"),
@@ -280,116 +174,23 @@ class SplashUI {
 
   /* ---- one-time scene scaffolding ---- */
   buildScene() {
-    this.dom.bg.innerHTML = sceneBackgroundSVG();
-    this.buildScenery();
+    // the painted town replaces the old SVG diorama and all its scenery
+    this.dom.bg.innerHTML =
+      `<img class="scene__art" src="${TOWN_ART}" alt="${TOWN_ALT}" draggable="false">`;
+    this.dom.scenery.innerHTML = "";
+    this.dom.clouds.innerHTML = "";
     this.buildZoneTags();
-    this.buildClouds();
     this.bindLegend();
-  }
-
-  buildScenery() {
-    const layer = this.dom.scenery;
-    layer.innerHTML = "";
-
-    // mountains first so they sit behind the pines & forest
-    for (const m of MOUNTAINS) {
-      const s = el("div", `sprite sprite--mountain sprite--mountain-${m.size}`, mountainSprite(m.v));
-      s.style.left = m.x + "%"; s.style.top = m.y + "%";
-      layer.appendChild(s);
-    }
-
-    const sun = el("div", "sun");
-    sun.style.left = "89%";
-    sun.style.top = "14%";
-    layer.appendChild(sun);
-
-    for (const [x, y] of PINES) {
-      const s = el("div", "sprite sprite--pine", pineSprite());
-      s.style.left = x + "%"; s.style.top = y + "%";
-      layer.appendChild(s);
-    }
-    for (const [x, y, v] of TREES) {
-      const s = el("div", "sprite sprite--tree", treeSprite(v));
-      s.style.left = x + "%"; s.style.top = y + "%";
-      layer.appendChild(s);
-    }
-    for (const [x, y] of REEDS) {
-      const s = el("div", "sprite sprite--reed", reedSprite());
-      s.style.left = x + "%"; s.style.top = y + "%";
-      layer.appendChild(s);
-    }
-    for (const [x, y, c] of FLOWERS) {
-      const s = el("div", "sprite sprite--flower", flowerSprite(c));
-      s.style.left = x + "%"; s.style.top = y + "%";
-      layer.appendChild(s);
-    }
-  }
-
-  /*
-   * Draws the town's river defenses along the shore: sandbags for the
-   * small-flood purchase, an earth-and-stone levee for the big-flood one.
-   * The first time a tier appears the blocks rise into place one after
-   * another; after that they simply stay put. Undo removes them again.
-   */
-  renderRiverDefenses() {
-    const layer = this.dom.defenses;
-    const g = this.game;
-    if (!layer || !g) return;
-
-    const tier = g.mitigateBigFlood ? "levee" : g.mitigateSmallFlood ? "sandbag" : null;
-    if (tier === this._defenseTier) return;   // nothing changed, leave it alone
-
-    const isNew = Boolean(tier);
-    this._defenseTier = tier;
-    layer.innerHTML = "";
-    if (!tier) return;
-
-    DEFENSE_LINE.forEach(([x, y, rot], i) => {
-      const node = el(
-        "div",
-        `defense defense--${tier}` + (isNew ? " is-building" : ""),
-        tier === "levee" ? leveeSprite() : sandbagSprite()
-      );
-      node.style.left = x + "%";
-      node.style.top = y + "%";
-      node.style.setProperty("--rot", rot + "deg");
-      node.style.setProperty("--i", i);
-      layer.appendChild(node);
-    });
-
-    if (isNew) {
-      // drop the build class once the wave has passed so later re-renders
-      // don't replay it
-      const total = 300 + DEFENSE_LINE.length * 70 + 520;
-      setTimeout(() => {
-        for (const n of layer.children) n.classList.remove("is-building");
-      }, total);
-    }
   }
 
   buildZoneTags() {
     const layer = this.dom.zones;
     layer.innerHTML = "";
-    const fire = el("div", "zone-tag zone-tag--fire", "🔥 Wildfire Risk");
-    fire.style.left = "2.5%"; fire.style.top = "60%";
-    const flood = el("div", "zone-tag zone-tag--flood", "🌊 Flood Risk");
-    flood.style.left = "2.5%"; flood.style.top = "92%";
-    layer.append(fire, flood);
-  }
-
-  buildClouds() {
-    const clouds = [
-      { top: 9, dur: 70, scale: 1, delay: 0 },
-      { top: 20, dur: 98, scale: 0.7, delay: -32 },
-      { top: 5, dur: 120, scale: 0.85, delay: -64 },
-    ];
-    for (const c of clouds) {
-      const node = el("div", "cloud", cloudSprite());
-      node.style.top = c.top + "%";
-      node.style.setProperty("--s", c.scale);
-      node.style.animationDuration = c.dur + "s";
-      node.style.animationDelay = c.delay + "s";
-      this.dom.clouds.appendChild(node);
+    for (const t of ZONE_TAGS) {
+      const tag = el("div", `zone-tag ${t.cls}`, t.text);
+      tag.style.left = t.x + "%";
+      tag.style.top = t.y + "%";
+      layer.appendChild(tag);
     }
   }
 
@@ -474,8 +275,6 @@ class SplashUI {
   /* Fresh town, fresh books — shared by the practice year and the real game. */
   resetRun() {
     this.game = new SplashGame({ totalYears: this.totalYears });
-    this._defenseTier = null;
-    if (this.dom.defenses) this.dom.defenses.innerHTML = "";
     this.stats = { hazards: [], buildingsLost: 0, yearsAllSafe: 0 };
     this.currentHazard = null;
     this.marked = new Set();
@@ -514,13 +313,15 @@ class SplashUI {
     const g = this.game;
     this.dom.buildings.innerHTML = "";
     for (const prop of g.properties) {
-      const pos = POSITIONS[prop];
-      const kind = D.PROPERTY_KIND[prop];
+      const box = HOTSPOTS[prop];
       const node = el("div", "building");
-      node.style.left = pos.x + "%";
-      node.style.top = pos.y + "%";
+      // the building is painted into the artwork; this is just its footprint
+      node.style.left = (box.x / ART.w) * 100 + "%";
+      node.style.top = (box.y / ART.h) * 100 + "%";
+      node.style.width = (box.w / ART.w) * 100 + "%";
+      node.style.height = (box.h / ART.h) * 100 + "%";
       node.dataset.prop = prop;
-      node.innerHTML = buildingSprite(kind, prop);
+      node.title = prop;
 
       // population pill (residential, functional only)
       const basePop = g.basePopulation[prop];
@@ -531,7 +332,8 @@ class SplashUI {
       // damage state
       if (!g.buildingFunctional[prop]) {
         const cause = g.damageCausedBy[prop];
-        node.classList.add("dmg");
+        node.classList.add("dmg", `dmg--${cause}`);
+        node.appendChild(el("div", "building__scrim"));
         node.appendChild(this.damageLayer(cause));
         if (cause === "earthquake") node.classList.add("dmg-earthquake");
       } else {
@@ -552,7 +354,6 @@ class SplashUI {
       });
       this.dom.buildings.appendChild(node);
     }
-    this.renderRiverDefenses();
     this.refreshActionable();
   }
 
@@ -911,6 +712,60 @@ class SplashUI {
     this.refreshActionable();
   }
 
+  /* ---- year log ----
+   *
+   * The CSV needs more than the HUD shows, so each year is measured at its
+   * phase boundaries: what the town looked like when planning opened, what
+   * changed by the time the hazard was entered, what the hazard broke, and
+   * what was rebuilt. Deriving everything from snapshots (rather than adding
+   * up purchases as they happen) means undo needs no special handling.
+   */
+  startYearLog() {
+    const g = this.game;
+    this.yearLog = {
+      startBudget: g.budget,
+      startPopulation: g.totalPopulation,
+      startValue: g.townValueLeft,
+      startDecisions: Object.keys(g.decisions),
+      startSmallFlood: g.mitigateSmallFlood,
+      startBigFlood: g.mitigateBigFlood,
+      retrofits: [],
+      retrofitSpend: 0,
+      floodBought: "",
+      floodSpend: 0,
+      damaged: [],
+      repaired: [],
+      repairSpend: 0,
+      revenue: 0,
+    };
+  }
+
+  /* Called once the hazard is entered: everything before it was planning. */
+  closePlanLog() {
+    const g = this.game;
+    const log = this.yearLog;
+    if (!log) return;
+
+    const bought = Object.keys(g.decisions).filter((k) => !log.startDecisions.includes(k));
+    log.retrofits = bought.map((k) => {
+      const [hazard, prop] = k.split("|");
+      return `${prop} (${hazard})`;
+    });
+    if (g.mitigateBigFlood && !log.startBigFlood) log.floodBought = "levees (big flood)";
+    else if (g.mitigateSmallFlood && !log.startSmallFlood) log.floodBought = "sandbags (small flood)";
+
+    const spent = log.startBudget - g.budget;
+    // split the planning spend between per-building retrofits and the levee
+    const floodCost = log.floodBought
+      ? (log.floodBought.startsWith("levees")
+          ? (log.startSmallFlood ? D.BIG_FLOOD_MITIGATION_COST - D.SMALL_FLOOD_MITIGATION_COST
+                                 : D.BIG_FLOOD_MITIGATION_COST)
+          : D.SMALL_FLOOD_MITIGATION_COST)
+      : 0;
+    log.floodSpend = Math.min(floodCost, Math.max(0, spent));
+    log.retrofitSpend = Math.max(0, spent - log.floodSpend);
+  }
+
   /* ---- undo ----
    *
    * Every spending decision is stacked with a snapshot taken just before it,
@@ -955,7 +810,6 @@ class SplashUI {
     const entry = this.undoStack.pop();
     if (!entry) return;
     this.game.restore(entry.snap);
-    this._defenseTier = undefined;   // force the defense layer to re-evaluate
     this.log(`↩ Undid ${entry.label}. The fund is back to ${money(this.game.budget)}.`, "j-undo");
     this.closePopover();
     this.renderBuildings();
@@ -1010,6 +864,7 @@ class SplashUI {
     this.dom.primary.textContent = copy.btn;
     // In the hazard phase the only way forward is picking a hazard.
     this.dom.primary.disabled = phase === "hazard";
+    if (phase === "plan") this.startYearLog();
     this.clearUndo();
     this.renderTrialChrome();
     this.renderPanel();
@@ -1037,6 +892,7 @@ class SplashUI {
     const g = this.game;
     if (!g.isValidHazard(hazard)) return;
 
+    this.closePlanLog();
     this.currentHazard = hazard;
     this.stats.hazards.push(hazard);
     const meta = D.HAZARD_META[hazard];
@@ -1090,6 +946,7 @@ class SplashUI {
       this.log("Every building held. No damage recorded.", "j-good");
     } else {
       g.applyDamage(damaged, hazard);
+      if (this.yearLog) this.yearLog.damaged = [...damaged];
       this.stats.buildingsLost += damaged.length;
       this.renderBuildings();
       const names = damaged.map((p) => D.PROPERTY_LABEL[p]).join(", ");
@@ -1106,6 +963,12 @@ class SplashUI {
   async afterDamage() {
     const g = this.game;
     await wait(400);
+
+    // the rebuild phase starts here; note what is broken and what is in hand
+    if (this.yearLog) {
+      this.yearLog.repairStartBudget = g.budget;
+      this.yearLog.brokenAtRepairStart = g.damagedProperties;
+    }
 
     // After the final year's hazard there is no rebuilding — the game is over
     // as soon as the damage is recorded. (The practice year is exempt.)
@@ -1149,14 +1012,10 @@ class SplashUI {
   async playHazardFx(hazard) {
     const scene = this.dom.scene;
     if (hazard === "wildfire") scene.classList.add("flash-fire");
-    else if (hazard === "small_flood" || hazard === "big_flood") {
-      scene.classList.add("flash-flood");
-      if (this._defenseTier) this.dom.defenses.classList.add("is-holding");
-    }
+    else if (hazard === "small_flood" || hazard === "big_flood") scene.classList.add("flash-flood");
     else if (hazard === "earthquake") { scene.classList.add("flash-quake", "shaking"); }
     await wait(1400);
     scene.classList.remove("flash-fire", "flash-flood", "flash-quake", "shaking");
-    this.dom.defenses.classList.remove("is-holding");
   }
 
   spawnCoins(byProperty) {
@@ -1182,6 +1041,15 @@ class SplashUI {
     // splash_game_oop_manual_input_v4.py, so repairs are paid for out of
     // the budget the town started the year with.
     this.dom.primary.disabled = true;
+
+    // close out the rebuild phase before revenue lands
+    const log = this.yearLog;
+    if (log) {
+      const brokenNow = g.damagedProperties;
+      log.repaired = (log.brokenAtRepairStart || []).filter((p) => !brokenNow.includes(p));
+      log.repairSpend = Math.max(0, (log.repairStartBudget ?? g.budget) - g.budget);
+    }
+
     const { byProperty, totalRevenue } = g.collectRevenue();
     this.spawnCoins(byProperty);
     this.updateHUD("budget");
@@ -1195,11 +1063,30 @@ class SplashUI {
       return;
     }
 
+    if (log) log.revenue = totalRevenue;
+
     g.recordYear({
       year: g.year,
       hazard: this.stats.hazards[this.stats.hazards.length - 1],
       budget: g.budget,
       population: g.totalPopulation,
+
+      // everything the CSV reports, measured across the year
+      startBudget: log?.startBudget ?? null,
+      startPopulation: log?.startPopulation ?? null,
+      startValue: log?.startValue ?? null,
+      retrofits: log?.retrofits ?? [],
+      retrofitSpend: log?.retrofitSpend ?? 0,
+      floodBought: log?.floodBought ?? "",
+      floodSpend: log?.floodSpend ?? 0,
+      damaged: log?.damaged ?? [],
+      repaired: log?.repaired ?? [],
+      repairSpend: log?.repairSpend ?? 0,
+      revenue: totalRevenue,
+      endValue: g.townValueLeft,
+      totalValue: g.finalValue,
+      standing: g.functionalProperties.length,
+      stillDamaged: g.damagedProperties,
     });
 
     if (g.year >= g.totalYears) {
@@ -1211,6 +1098,120 @@ class SplashUI {
     this.renderBuildings();
     this.setPhase("plan");
     this.updateHUD();
+  }
+
+  /* ---- the downloadable record ----
+   *
+   * One CSV: a row per year covering the decisions, the hazard, the damage,
+   * the repairs and the money, followed by a summary block of the totals the
+   * report shows. Mirrors the columns the Python script writes out.
+   */
+  buildCsv() {
+    const g = this.game;
+    const q = (v) => {
+      const t = v === null || v === undefined ? "" : String(v);
+      return /[",\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
+    };
+    const row = (cells) => cells.map(q).join(",");
+    const list = (a) => (a && a.length ? a.join("; ") : "none");
+
+    const lines = [];
+    lines.push(row(["Splash — Cardinal Grove"]));
+    lines.push(row(["exported", new Date().toISOString().slice(0, 10)]));
+    lines.push(row(["years played", g.year]));
+    lines.push("");
+
+    lines.push(row([
+      "year", "hazard",
+      "starting_budget", "retrofits_bought", "retrofit_spending",
+      "flood_defense_bought", "flood_defense_spending",
+      "buildings_damaged", "buildings_damaged_count",
+      "buildings_repaired", "repair_spending",
+      "revenue", "ending_budget",
+      "starting_population", "ending_population", "population_change",
+      "buildings_standing", "damaged_at_year_end",
+      "town_value_standing", "total_value",
+    ]));
+
+    for (const r of g.history) {
+      lines.push(row([
+        r.year, r.hazard,
+        r.startBudget, list(r.retrofits), r.retrofitSpend,
+        r.floodBought || "none", r.floodSpend,
+        list(r.damaged), (r.damaged || []).length,
+        list(r.repaired), r.repairSpend,
+        r.revenue, r.budget,
+        r.startPopulation, r.population,
+        (r.population ?? 0) - (r.startPopulation ?? 0),
+        r.standing, list(r.stillDamaged),
+        r.endValue, r.totalValue,
+      ]));
+    }
+
+    lines.push("");
+    lines.push(row(["FINAL SUMMARY", ""]));
+    lines.push(row(["metric", "value"]));
+    const summary = [
+      ["years_played", g.year],
+      ["ending_budget", g.budget],
+      ["remaining_population", g.totalPopulation],
+      ["original_population", g.basePopulationTotal],
+      ["population_over_time", g.populationOverTime],
+      ["max_population_over_time", g.maxPopulationOverTime],
+      ["population_by_year", g.populationByYear.join("; ")],
+      ["buildings_standing", g.functionalProperties.length],
+      ["buildings_total", g.properties.length],
+      ["damaged_at_end", list(g.damagedProperties)],
+      ["original_town_value", g.originalTownValue],
+      ["value_left_in_town", g.townValueLeft],
+      ["value_lost", g.townValueLost],
+      ["final_town_value", g.finalValue],
+      ["calm_years", this.stats.yearsAllSafe],
+      ["buildings_damaged_total", this.stats.buildingsLost],
+      ["hazards_in_order", this.stats.hazards.join("; ")],
+    ];
+    for (const [k, v] of summary) lines.push(row([k, v]));
+
+    lines.push("");
+    lines.push(row(["FINAL STATE BY BUILDING", ""]));
+    lines.push(row([
+      "building", "standing_at_end", "residents_at_end", "base_residents",
+      "build_value", "damaged_by", "wildfire_retrofit", "earthquake_retrofit",
+      "flood_defense",
+    ]));
+    const floodTier = g.mitigateBigFlood ? "levees" : g.mitigateSmallFlood ? "sandbags" : "none";
+    for (const prop of g.properties) {
+      const exposedToFlood = g.isExposed("small_flood", prop) || g.isExposed("big_flood", prop);
+      lines.push(row([
+        prop,
+        g.buildingFunctional[prop] ? "yes" : "no",
+        g.population[prop] ?? 0,
+        g.basePopulation[prop] ?? 0,
+        D.PROPERTY_COST[prop] ?? 0,
+        g.buildingFunctional[prop] ? "" : g.damageCausedBy[prop],
+        g.decisions[`wildfire|${prop}`] ? "yes" : (g.isExposed("wildfire", prop) ? "no" : "n/a"),
+        g.decisions[`earthquake|${prop}`] ? "yes" : (g.isExposed("earthquake", prop) ? "no" : "n/a"),
+        exposedToFlood ? floodTier : "n/a",
+      ]));
+    }
+
+    return lines.join("\n");
+  }
+
+  downloadCsv() {
+    const csv = this.buildCsv();
+    const stamp = new Date().toISOString().slice(0, 10);
+    const name = `cardinal-grove-${this.game.year}-years-${stamp}.csv`;
+    // BOM so Excel opens the file as UTF-8
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
   /* ---- end game report ---- */
@@ -1260,11 +1261,14 @@ class SplashUI {
         </span>
         <div class="report-years">${yearChips}</div>
       </div>
+      <button class="csv-btn" id="csv-btn">⤓ Download the full record (CSV)</button>
       <button class="primary-btn primary-btn--lg" id="replay-btn">Settle in again ▸</button>
     `;
     this.dom.report.hidden = false;
     this.dom.reportCard.querySelector("#replay-btn")
       .addEventListener("click", () => { this.dom.report.hidden = true; this.dom.title.hidden = false; });
+    this.dom.reportCard.querySelector("#csv-btn")
+      .addEventListener("click", () => this.downloadCsv());
   }
 }
 

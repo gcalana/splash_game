@@ -152,19 +152,29 @@ body::after {
   min-height: 0;
 }
 
-.scene-wrap { position: relative; min-height: 0; display: flex; }
+.scene-wrap {
+  position: relative;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 .scene {
   position: relative;
-  flex: 1;
+  /* matches img/town.jpg (1672 x 800) so the building hotspots stay
+     registered with the painted buildings at every window size */
+  aspect-ratio: 1672 / 800;
+  width: 100%;
+  max-width: 100%;
+  max-height: 100%;
   border-radius: var(--radius);
   overflow: hidden;
   border: 3px solid var(--ink);
   box-shadow: var(--shadow);
-  background: linear-gradient(#bfe2ef 0%, #d8ecf0 38%, #e9e2c3 39%, #e9e2c3 100%);
+  background: #b7ce85;
 }
 .scene__bg,
 .scene__scenery,
-.scene__defenses,
 .scene__zones,
 .scene__clouds,
 .scene__buildings,
@@ -175,12 +185,22 @@ body::after {
 .scene__bg { z-index: 0; }
 .scene__clouds { z-index: 1; }
 .scene__scenery { z-index: 2; }
-.scene__defenses { z-index: 3; }
 .scene__zones { z-index: 6; }
 .scene__buildings { z-index: 4; }
 .scene__fx { z-index: 5; }
 .scene__bg svg { width: 100%; height: 100%; display: block; }
-.scene__scenery, .scene__defenses, .scene__zones, .scene__clouds, .scene__fx { pointer-events: none; }
+/* the painted town fills the frame */
+.scene__art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  display: block;
+  user-select: none;
+  pointer-events: none;
+}
+.scene__scenery, .scene__zones, .scene__clouds, .scene__fx { pointer-events: none; }
 .scene__buildings { pointer-events: none; }
 
 /* scenery sprites (trees, pines, flowers, sun) — anchored on the ground */
@@ -243,38 +263,31 @@ body::after {
 }
 
 /* ---------------- Buildings ---------------- */
+/* Buildings are painted into the artwork; each .building is just the
+   clickable footprint laid over one of them. */
 .building {
   position: absolute;
-  width: clamp(66px, 7.4vw, 94px);
-  height: clamp(66px, 7.4vw, 94px);
-  transform: translate(-50%, -50%);
   pointer-events: auto;
   cursor: pointer;
-  transition: transform 0.25s cubic-bezier(.34,1.56,.64,1), filter 0.25s;
-  filter: drop-shadow(3px 5px 4px rgba(74, 53, 39, 0.22));
+  border: 3px solid transparent;
+  border-radius: 16px;
+  transition: background-color .14s ease, border-color .14s ease, box-shadow .14s ease;
 }
-.building .bsvg { width: 100%; height: 100%; display: block; overflow: visible; }
-.building:hover { transform: translate(-50%, -54%) scale(1.06); z-index: 5; }
-.building.is-actionable { animation: nudge 2.4s ease-in-out infinite; }
-.building.is-actionable::after {
-  content: "";
-  position: absolute;
-  inset: -8px;
-  border-radius: 50%;
-  border: 3px dashed var(--mustard);
-  opacity: 0.0;
-  animation: ring 2.4s ease-in-out infinite;
+.building:hover { background: rgba(255, 248, 213, .16); border-color: rgba(255, 248, 213, .8); }
+.building.is-actionable {
+  border-color: var(--mustard);
+  background: rgba(255, 219, 117, .13);
+  animation: hotspotPulse 2.4s ease-in-out infinite;
 }
-.building.is-selected { transform: translate(-50%, -56%) scale(1.1); z-index: 6; }
-.building.is-selected .bsvg { filter: drop-shadow(0 0 0 var(--mustard)); }
-
-@keyframes ring {
-  0%, 100% { opacity: 0; transform: scale(0.9); }
-  50% { opacity: 0.8; transform: scale(1); }
+.building.is-selected {
+  border-color: var(--mustard);
+  background: rgba(255, 219, 117, .2);
+  box-shadow: 0 0 0 2px rgba(23, 60, 83, .55), 0 6px 18px rgba(23, 60, 83, .35);
+  z-index: 6;
 }
-@keyframes nudge {
-  0%, 92%, 100% { translate: 0 0; }
-  96% { translate: 0 -3px; }
+@keyframes hotspotPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 219, 117, .55); }
+  50% { box-shadow: 0 0 0 7px rgba(255, 219, 117, 0); }
 }
 
 /* people pill */
@@ -311,10 +324,20 @@ body::after {
   box-shadow: 1.5px 1.5px 0 rgba(74,53,39,.16);
 }
 
-/* damage states */
-.building.dmg { filter: drop-shadow(3px 5px 4px rgba(74,53,39,.22)) saturate(.55) brightness(.82); }
-.building.dmg .bsvg { transform: rotate(-2deg); }
-.building.dmg-earthquake .bsvg { transform: rotate(-4deg) translateY(3px); }
+/* damage states — the painting cannot change, so damage is laid over it */
+.building__scrim {
+  position: absolute;
+  inset: 0;
+  border-radius: 13px;
+  pointer-events: none;
+  background: rgba(38, 28, 22, .5);
+  box-shadow: inset 0 0 22px rgba(20, 12, 8, .55);
+}
+.building.dmg--wildfire .building__scrim { background: rgba(70, 30, 16, .5); }
+.building.dmg--small_flood .building__scrim,
+.building.dmg--big_flood .building__scrim { background: rgba(20, 52, 84, .5); }
+.building.dmg--earthquake .building__scrim { background: rgba(44, 36, 28, .52); }
+.building.dmg { border-color: rgba(255, 248, 213, .28); }
 
 .dmg-layer { position: absolute; inset: 0; pointer-events: none; }
 
@@ -668,7 +691,7 @@ body::after {
 .mini-btn:hover { color: var(--ink); border-color: var(--ink-faint); background: #fff; }
 
 /* a building the player has marked as damaged, before it is recorded */
-.building.is-marked .bsvg { filter: drop-shadow(0 0 7px var(--terracotta)); }
+.building.is-marked { border-color: var(--terracotta); background: rgba(207, 106, 73, .22); }
 .building.is-marked::before {
   content: "✕";
   position: absolute;
@@ -683,39 +706,24 @@ body::after {
   display: grid; place-items: center;
 }
 
-/* ---------------- River defenses (sandbags / levee) ---------------- */
-.defense {
-  position: absolute;
-  transform: translate(-50%, -70%) rotate(var(--rot, 0deg));
-  transform-origin: 50% 90%;
-  filter: drop-shadow(2px 3px 2px rgba(74, 53, 39, 0.24));
+/* Download link on the end-of-game report. */
+.csv-btn {
+  font-family: var(--font-body);
+  font-weight: 800;
+  font-size: 12.5px;
+  letter-spacing: 0.2px;
+  color: var(--ink-soft);
+  background: var(--paper);
+  border: 2px dashed var(--card-line);
+  border-radius: 12px;
+  padding: 10px 14px;
+  margin: 0 auto 12px;
+  display: block;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
 }
-.defense--levee { width: clamp(44px, 5vw, 68px); }
-.defense--sandbag { width: clamp(32px, 3.6vw, 48px); }
-
-/* Each block rises into place in turn, so the wall builds along the bank. */
-.defense.is-building {
-  animation: leveeRise 0.52s cubic-bezier(.34, 1.56, .64, 1) backwards;
-  animation-delay: calc(0.3s + var(--i) * 0.07s);
-}
-@keyframes leveeRise {
-  from { opacity: 0; transform: translate(-50%, 10%) rotate(var(--rot, 0deg)) scaleY(0.25); }
-  60%  { opacity: 1; transform: translate(-50%, -80%) rotate(var(--rot, 0deg)) scaleY(1.08); }
-  to   { opacity: 1; transform: translate(-50%, -70%) rotate(var(--rot, 0deg)) scaleY(1); }
-}
-
-/* While a flood rolls through, the wall shoulders the water. */
-.scene__defenses.is-holding .defense {
-  animation: leveeHold 0.9s ease-in-out 3;
-  animation-delay: calc(var(--i) * 0.05s);
-}
-@keyframes leveeHold {
-  0%, 100% { transform: translate(-50%, -70%) rotate(var(--rot, 0deg)); }
-  50% { transform: translate(-50%, -73%) rotate(var(--rot, 0deg)); filter: drop-shadow(0 0 7px #8fe3ff); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .defense.is-building, .scene__defenses.is-holding .defense { animation: none; }
-}
+.csv-btn:hover { color: var(--ink); border-color: var(--ink-faint); background: #fff; }
+.csv-btn:active { transform: translateY(1px); }
 
 /* ---------------- Practice year ---------------- */
 .skip-trial-btn {
