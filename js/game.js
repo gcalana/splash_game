@@ -106,11 +106,7 @@ export class SplashGame {
   /* Cost to buy the next flood tier right now (accounts for upgrade discount). */
   floodMitigationCost(tier) {
     if (tier === "small") return D.SMALL_FLOOD_MITIGATION_COST;
-    if (tier === "big") {
-      return this.mitigateSmallFlood
-        ? D.BIG_FLOOD_MITIGATION_COST - D.SMALL_FLOOD_MITIGATION_COST
-        : D.BIG_FLOOD_MITIGATION_COST;
-    }
+    if (tier === "big") return D.BIG_FLOOD_MITIGATION_COST;
     return null;
   }
 
