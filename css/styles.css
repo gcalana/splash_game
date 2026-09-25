@@ -788,6 +788,63 @@ body::after {
   display: grid; place-items: center;
 }
 
+/* ---------------- What-if replay of the final year ---------------- */
+.whatif-btn {
+  font-family: var(--font-body);
+  font-weight: 800;
+  font-size: 0.862rem;
+  color: #fff8ef;
+  background: #3f6f8c;
+  border: 2.5px solid var(--ink);
+  border-radius: 12px;
+  padding: 0.7rem 1rem;
+  margin: 0 auto 0.8rem;
+  display: block;
+  cursor: pointer;
+  box-shadow: 0 4px 0 #2d5268;
+  transition: transform 0.07s, box-shadow 0.07s, background 0.15s;
+}
+.whatif-btn:hover { background: #4a7e9c; }
+.whatif-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #2d5268; }
+
+.whatif-note {
+  font-size: 0.83rem;
+  font-weight: 700;
+  color: #3f6f8c;
+  background: #e8f1f6;
+  border: 2px dashed #9fbfd1;
+  border-radius: 10px;
+  padding: 0.5rem 0.8rem;
+  margin: 0 0 1rem;
+  text-align: center;
+}
+
+.whatif-compare {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 1.2rem;
+  font-size: 0.9rem;
+}
+.whatif-compare th,
+.whatif-compare td {
+  padding: 0.42rem 0.55rem;
+  text-align: right;
+  border-bottom: 1.5px solid var(--card-line);
+  font-variant-numeric: tabular-nums;
+}
+.whatif-compare thead th {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.whatif-compare tbody th { text-align: left; font-weight: 800; color: var(--ink); }
+.whatif-compare td { color: var(--ink-soft); font-weight: 700; }
+.whatif-delta { font-weight: 800; color: var(--ink-faint); }
+.whatif-delta--up { color: #3f7d47; }
+.whatif-delta--down { color: var(--terracotta-deep); }
+
 /* Download link on the end-of-game report. */
 .csv-btn {
   font-family: var(--font-body);

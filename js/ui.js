@@ -86,6 +86,29 @@ const TOWN_ALT =
  * says plainly that nothing counts, so a new player can poke at retrofits,
  * hazards, damage and repairing once before the town is really at stake.
  */
+/*
+ * Wording for the "what if?" replay of the final year. Same screens as the
+ * real final year, labelled so it is clear this run is only an experiment.
+ */
+const WHATIF_COPY = {
+  hazard: {
+    title: "What If: The Season Turns",
+    hint: "Same town, same plan — pick a different hazard for the final year and see how Cardinal Grove would have fared. This replay isn't saved to your record.",
+    ribbon: "What if? · pick a hazard",
+  },
+  damage: {
+    title: "What If: Record the Damage",
+    hint: "Mark the buildings this hazard would have wrecked.",
+    ribbon: "What if? · record the damage",
+  },
+  final: {
+    title: "What If: The Final Reckoning",
+    hint: "As in the real final year, there is no time left to repair.",
+    ribbon: "What if? · the years are done",
+    btn: "See the what-if results ▸",
+  },
+};
+
 const TRIAL_COPY = {
   plan: {
     title: "Practice: Plan the Year",
@@ -257,6 +280,11 @@ class SplashUI {
   /* Fresh town, fresh books — shared by the practice year and the real game. */
   resetRun() {
     this.game = new SplashGame({ totalYears: this.totalYears });
+    this.whatIf = false;           // replaying the final year's hazard
+    this.finalCheckpoint = null;   // the town just before that hazard
+    this.originalEnd = null;       // the town as the real game ended
+    this.originalCsv = null;       // the record, frozen at the real ending
+    this.originalSummary = null;   // headline numbers, for the comparison
     this.stats = { hazards: [], buildingsLost: 0, yearsAllSafe: 0 };
     this.currentHazard = null;
     this.marked = new Set();
@@ -736,8 +764,7 @@ class SplashUI {
     // split the planning spend between per-building retrofits and the levee
     const floodCost = log.floodBought
       ? (log.floodBought.startsWith("levees")
-          ? (log.startSmallFlood ? D.BIG_FLOOD_MITIGATION_COST - D.SMALL_FLOOD_MITIGATION_COST
-                                 : D.BIG_FLOOD_MITIGATION_COST)
+          ? D.BIG_FLOOD_MITIGATION_COST
           : D.SMALL_FLOOD_MITIGATION_COST)
       : 0;
     log.floodSpend = Math.min(floodCost, Math.max(0, spent));
@@ -835,6 +862,7 @@ class SplashUI {
     }[phase];
     // The practice year reuses every phase, just says so on every screen.
     if (this.isTrial && TRIAL_COPY[phase]) Object.assign(copy, TRIAL_COPY[phase]);
+    if (this.whatIf && WHATIF_COPY[phase]) Object.assign(copy, WHATIF_COPY[phase]);
 
     this.dom.ledgerPhase.textContent = copy.title;
     this.dom.ledgerHint.textContent = copy.hint;
@@ -871,6 +899,13 @@ class SplashUI {
     if (!g.isValidHazard(hazard)) return;
 
     this.closePlanLog();
+
+    // Remember the town exactly as it stood when the final year's hazard was
+    // entered, so the report can offer a "what if?" replay of that hazard.
+    if (!this.isTrial && !this.whatIf && g.year >= g.totalYears) {
+      this.finalCheckpoint = this.captureRun();
+    }
+
     this.currentHazard = hazard;
     this.stats.hazards.push(hazard);
     const meta = D.HAZARD_META[hazard];
@@ -1178,7 +1213,9 @@ class SplashUI {
   }
 
   downloadCsv() {
-    const csv = this.buildCsv();
+    // after the game ends the record is frozen, so a what-if replay can
+    // never change what gets downloaded
+    const csv = this.originalCsv ?? this.buildCsv();
     const stamp = new Date().toISOString().slice(0, 10);
     const name = `cardinal-grove-${this.game.year}-years-${stamp}.csv`;
     // BOM so Excel opens the file as UTF-8
@@ -1194,28 +1231,88 @@ class SplashUI {
   }
 
   /* ---- end game report ---- */
+  /* ---- saving and restoring a whole run (for the what-if replay) ---- */
+  captureRun() {
+    const clone = (v) => JSON.parse(JSON.stringify(v));
+    return {
+      engine: this.game.snapshot(),
+      year: this.game.year,
+      history: clone(this.game.history),
+      stats: clone(this.stats),
+      yearLog: clone(this.yearLog ?? null),
+    };
+  }
+
+  restoreRun(run) {
+    const clone = (v) => JSON.parse(JSON.stringify(v));
+    this.game.restore(run.engine);
+    this.game.year = run.year;
+    this.game.history = clone(run.history);
+    this.stats = clone(run.stats);
+    this.yearLog = clone(run.yearLog);
+    this.currentHazard = null;
+    this.marked = new Set();
+    this.undoStack = [];
+  }
+
+  /* ---- what-if replay of the final year's hazard ---- */
+  startWhatIf() {
+    if (!this.finalCheckpoint) return;
+    this.whatIf = true;
+    this.restoreRun(this.finalCheckpoint);
+    this.dom.report.hidden = true;
+    this.closePopover();
+    this.renderBuildings();
+    this.updateHUD();
+    this.log(
+      `↺ <b>What if?</b> Year ${this.game.year} again with the same plan — choose a different hazard. ` +
+        "This replay isn't saved to your record.",
+      "j-year"
+    );
+    this.setPhase("hazard");
+  }
+
+  backToOriginal() {
+    if (!this.originalEnd) return;
+    this.whatIf = false;
+    this.restoreRun(this.originalEnd);
+    this.renderBuildings();
+    this.updateHUD();
+    this.log("← Back to your original results.", "j-undo");
+    this.renderReport();
+  }
+
+  /* ---- end game report ---- */
   endGame() {
+    if (!this.whatIf) {
+      // The real game just ended: freeze the record and remember the ending,
+      // so nothing done in a what-if replay can change either.
+      this.originalCsv = this.buildCsv();
+      this.originalEnd = this.captureRun();
+      const g = this.game;
+      this.originalSummary = {
+        hazard: this.stats.hazards[this.stats.hazards.length - 1],
+        finalValue: g.finalValue,
+        budget: g.budget,
+        popOverTime: g.populationOverTime,
+        standing: g.functionalProperties.length,
+        population: g.totalPopulation,
+      };
+    }
+    this.renderReport();
+  }
+
+  /* The four tiles and two totals, for whatever state the town is in now. */
+  reportBody() {
     const g = this.game;
     const functional = g.functionalProperties.length;
     const safe = this.stats.yearsAllSafe;
-    const yearWord = g.year === 1 ? "year" : "years";
-
-    // Final town value: what is still standing, plus the cash left over.
-    const valueLeft = g.townValueLeft;
-    const valueLost = g.townValueLost;
-    const finalValue = g.finalValue;
-
-    // Population over time: the year-end population totalled across the game.
     const popOverTime = g.populationOverTime;
     const maxPopOverTime = g.maxPopulationOverTime;
     const yearChips = g.populationByYear
       .map((n, i) => `<span class="report-years__chip"><b>${n}</b><small>yr ${i + 1}</small></span>`)
       .join("");
-
-    this.dom.reportCard.innerHTML = `
-      <div class="title-card__emblem">🏡</div>
-      <h2>The Years Pass…</h2>
-      <p class="report-card__verdict">How Cardinal Grove came through ${g.year} ${yearWord}.</p>
+    return `
       <div class="report-grid">
         <div class="report-stat"><span class="n">${money(g.budget)}</span><span class="l">Town Fund</span></div>
         <div class="report-stat"><span class="n">${g.totalPopulation} / ${g.basePopulationTotal}</span><span class="l">Townsfolk Home</span></div>
@@ -1223,13 +1320,13 @@ class SplashUI {
         <div class="report-stat"><span class="n">${safe}</span><span class="l">Calm Years</span></div>
       </div>
       <div class="report-total report-total--value">
-        <span class="report-total__n">${money(finalValue)}</span>
+        <span class="report-total__n">${money(g.finalValue)}</span>
         <span class="report-total__l">Final Town Value</span>
         <span class="report-total__note">
-          ${money(valueLeft)} standing in buildings + ${money(g.budget)} in the fund
+          ${money(g.townValueLeft)} standing in buildings + ${money(g.budget)} in the fund
         </span>
         <span class="report-total__note">
-          ${money(valueLost)} of ${money(g.originalTownValue)} lost to hazards
+          ${money(g.townValueLost)} of ${money(g.originalTownValue)} lost to hazards
         </span>
       </div>
       <div class="report-total">
@@ -1239,15 +1336,74 @@ class SplashUI {
           sum of year-end population · ${popOverTime.toLocaleString()} of a possible ${maxPopOverTime.toLocaleString()}
         </span>
         <div class="report-years">${yearChips}</div>
-      </div>
-      <button class="csv-btn" id="csv-btn">⤓ Download the full record (CSV)</button>
-      <button class="primary-btn primary-btn--lg" id="replay-btn">Settle in again ▸</button>
-    `;
+      </div>`;
+  }
+
+  renderReport() {
+    const g = this.game;
+    const yearWord = g.year === 1 ? "year" : "years";
+    const card = this.dom.reportCard;
+
+    if (!this.whatIf) {
+      card.innerHTML = `
+        <div class="title-card__emblem">🏡</div>
+        <h2>The Years Pass…</h2>
+        <p class="report-card__verdict">How Cardinal Grove came through ${g.year} ${yearWord}.</p>
+        ${this.reportBody()}
+        <button class="csv-btn" id="csv-btn">⤓ Download the full record (CSV)</button>
+        <button class="whatif-btn" id="whatif-btn">↺ What if the final year's hazard had been different?</button>
+        <button class="primary-btn primary-btn--lg" id="replay-btn">Settle in again ▸</button>
+      `;
+      card.querySelector("#csv-btn").addEventListener("click", () => this.downloadCsv());
+    } else {
+      const o = this.originalSummary;
+      const now = {
+        hazard: this.stats.hazards[this.stats.hazards.length - 1],
+        finalValue: g.finalValue,
+        popOverTime: g.populationOverTime,
+        standing: g.functionalProperties.length,
+        population: g.totalPopulation,
+      };
+      const label = (h) => D.HAZARD_META[h]?.label ?? h;
+      const delta = (a, b, fmt) => {
+        const d = b - a;
+        if (d === 0) return `<span class="whatif-delta">no change</span>`;
+        const cls = d > 0 ? "whatif-delta whatif-delta--up" : "whatif-delta whatif-delta--down";
+        return `<span class="${cls}">${d > 0 ? "+" : "−"}${fmt(Math.abs(d))}</span>`;
+      };
+      const row = (name, a, b, fmt) => `
+        <tr><th>${name}</th><td>${fmt(a)}</td><td>${fmt(b)}</td><td>${delta(a, b, fmt)}</td></tr>`;
+      const count = (n) => n.toLocaleString();
+
+      card.innerHTML = `
+        <div class="title-card__emblem">↺</div>
+        <h2>What If…</h2>
+        <p class="report-card__verdict">
+          Year ${g.year} replayed with <b>${label(now.hazard)}</b> instead of <b>${label(o.hazard)}</b> —
+          same plan, different hazard.
+        </p>
+        <p class="whatif-note">For learning only — this replay is not included in your downloaded record.</p>
+        <table class="whatif-compare">
+          <thead><tr><th></th><th>Your game</th><th>What if</th><th>Difference</th></tr></thead>
+          <tbody>
+            ${row("Final Town Value", o.finalValue, now.finalValue, money)}
+            ${row("Population Over Time", o.popOverTime, now.popOverTime, count)}
+            ${row("Buildings Standing", o.standing, now.standing, count)}
+            ${row("Townsfolk Home", o.population, now.population, count)}
+          </tbody>
+        </table>
+        ${this.reportBody()}
+        <button class="whatif-btn" id="whatif-btn">↺ Try a different hazard</button>
+        <button class="csv-btn" id="back-btn">← Back to my original results</button>
+        <button class="primary-btn primary-btn--lg" id="replay-btn">Settle in again ▸</button>
+      `;
+      card.querySelector("#back-btn").addEventListener("click", () => this.backToOriginal());
+    }
+
     this.dom.report.hidden = false;
-    this.dom.reportCard.querySelector("#replay-btn")
+    card.querySelector("#whatif-btn").addEventListener("click", () => this.startWhatIf());
+    card.querySelector("#replay-btn")
       .addEventListener("click", () => { this.dom.report.hidden = true; this.dom.title.hidden = false; });
-    this.dom.reportCard.querySelector("#csv-btn")
-      .addEventListener("click", () => this.downloadCsv());
   }
 }
 
